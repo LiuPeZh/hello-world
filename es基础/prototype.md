@@ -1,4 +1,4 @@
-![avatar](./prototype.png)
+![avatar](https://github.com/LiuPeZh/hello-world/tree/es-foundation/es%E5%9F%BA%E7%A1%80/prototype.png)
 
 原型只要理解了这张图基本就全理解了。。
 
