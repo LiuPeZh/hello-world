@@ -119,3 +119,7 @@ class ModuleCollection {
 ```
 ## 4. 调用dispatch和commit时的原理。
 ## 5. 组件绑定的辅助
+## 6. 其他
+#### 1. Array.prototype.reduce方法
+1. 将数组按照一定的规则整合成一个值（累计，拼接字符串，转对象）。
+2. 按照路径在树型结构中查找数据。
