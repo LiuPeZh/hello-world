@@ -1,4 +1,4 @@
-## 1. vuex的安装（Vue.use(Vuex)?
+## 1. vuex的安装（Vue.use(Vuex)
 ```javascript
 // src/store.js
 let Vue // bind on install
@@ -35,6 +35,7 @@ export default function (Vue) {
   }
 }
 ```
+vuex的安装是通过全局混入beforeCreate钩子函数来进行的，在vue中作为被混入的生命周期函数，它是不会被覆盖，而是会按混入的顺序依次去执行。在root组件中直接挂载$store，在非root组件中挂载的则是父组件的$store，因为父子组件的生命周期触发是 父beforeCreate --> 子berforeCreate 这样的顺序去触发的，最终通过层层的挂载$store，使得每个组件中都可以访问到，同时它们也都同一个对象。
 ## 2. new Vuex.store(opt)的流程。
 ```javascript
 // src/mixin.js
