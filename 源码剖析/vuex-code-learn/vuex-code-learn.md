@@ -342,6 +342,7 @@ function unifyObjectStyle (type, payload, options) {
   return { type, payload, options }
 }
 ```
+</details>
 
 ## 3. 安装模块 installModule(this, state, [], this._modules.root)
 this：当前Store的实例，state： 根模块的state，[]表示根模块路径， this._modules.root： 根模块 。 与ModuleCollection的register方法一样，都是内部去维护这个path路径变量。
@@ -371,7 +372,8 @@ function installModule (store, rootState, path, module, hot) {
           )
         }
       }
-      Vue.set(parentState, moduleName, module.state) 通过Vue.set方法向父模块的state对象中添加key为当前模块名称，值为当前模块state的对象。
+      // 通过Vue.set方法向父模块的state对象中添加key为当前模块名称，值为当前模块state的对象。
+      Vue.set(parentState, moduleName, module.state) 
     })
   }
   // 创建局部上下文环境
@@ -397,7 +399,57 @@ function installModule (store, rootState, path, module, hot) {
     installModule(store, rootState, path.concat(key), child, hot)
   })
 }
+function registerMutation (store, type, handler, local) {
+  const entry = store._mutations[type] || (store._mutations[type] = [])
+  entry.push(function wrappedMutationHandler (payload) {
+    handler.call(store, local.state, payload)
+  })
+}
+
+function registerAction (store, type, handler, local) {
+  const entry = store._actions[type] || (store._actions[type] = [])
+  entry.push(function wrappedActionHandler (payload) {
+    let res = handler.call(store, {
+      dispatch: local.dispatch,
+      commit: local.commit,
+      getters: local.getters,
+      state: local.state,
+      rootGetters: store.getters,
+      rootState: store.state
+    }, payload)
+    if (!isPromise(res)) {
+      res = Promise.resolve(res)
+    }
+    if (store._devtoolHook) {
+      return res.catch(err => {
+        store._devtoolHook.emit('vuex:error', err)
+        throw err
+      })
+    } else {
+      return res
+    }
+  })
+}
+
+function registerGetter (store, type, rawGetter, local) {
+  if (store._wrappedGetters[type]) {
+    if (__DEV__) {
+      console.error(`[vuex] duplicate getter key: ${type}`)
+    }
+    return
+  }
+  store._wrappedGetters[type] = function wrappedGetter (store) {
+    return rawGetter(
+      local.state, // local state
+      local.getters, // local getters
+      store.state, // root state
+      store.getters // root getters
+    )
+  }
+}
 ```
+在不开启命名空间的情况下，commit和dispatch会触发所有全局的mutation和action，
+再创建完局部上下文环境后， 接下来会去注册当前模块下的getters、mutations和actions。
 然后再来看下makeLocalContext函数的实现。我们可以在定义mutation函数时第一个参数可以拿到state对象，而在定义action函数时通过第一个参数拿到context。
 <details>
 <summary>const local = module.context = makeLocalContext(store, namespace, path)</summary>
@@ -529,6 +581,8 @@ function enableStrictMode (store) {
   }, { deep: true, sync: true })
 }
 ```
+从本质上来说vuex就是一个vue组件，只不过这个组件没有template、render等属性。通过将state挂载到vm的data上，将getter挂载到vm的computed，来实现响应式的数据。从设计上来看getter是依赖state的，因此在该vm中和state分别对应到computed和data上。
+
 ## 5. 辅助函数
 ## 6. 其他
 #### 1. Array.prototype.reduce方法
