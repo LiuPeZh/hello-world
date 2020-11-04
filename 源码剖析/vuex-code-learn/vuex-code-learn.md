@@ -88,10 +88,21 @@ export class Store {
       devtoolPlugin(this)
     }
   }
+  // getter 获取store.state时相当获取store.vm._data.$$state
+  get state () {
+    return this._vm._data.$$state
+  }
+
+  set state (v) {
+    if (__DEV__) {
+      assert(false, `use store.replaceState() to explicit replace store state.`)
+    }
+  }
 }
 ```
+### 2-1. 模块的实现
 <details>
-<summary>## 3. 模块的实现 new ModuleCollection(options)</summary>
+<summary>new ModuleCollection(options)</summary>
 
 模块在vuex中是很重要的一部分。因为采用了单一状态树模型，所以在状态较多的时候，代码层面就显得很复杂。通过模块化可以解决这个问题。而它的模块实质就是一颗树的结构。
 在vuex中，是通过ModuleCollection类来管理模块的。
@@ -197,7 +208,142 @@ export default class Module {
 }
 ```
 </details>
-## 4. 安装模块 installModule(this, state, [], this._modules.root)
+
+### 2-2. dispatch和commit的实现
+<details>
+<summary>dispatch和commit</summary>
+
+```javascript
+// src/store.js
+export class Store {
+
+  // ......
+
+  commit (_type, _payload, _options) {
+    // check object-style commit
+    const {
+      type,
+      payload,
+      options
+    } = unifyObjectStyle(_type, _payload, _options)
+
+    const mutation = { type, payload }
+    const entry = this._mutations[type]
+    if (!entry) {
+      if (__DEV__) {
+        console.error(`[vuex] unknown mutation type: ${type}`)
+      }
+      return
+    }
+    this._withCommit(() => {
+      entry.forEach(function commitIterator (handler) {
+        handler(payload)
+      })
+    })
+
+    this._subscribers
+      .slice() // shallow copy to prevent iterator invalidation if subscriber synchronously calls unsubscribe
+      .forEach(sub => sub(mutation, this.state))
+
+    if (
+      __DEV__ &&
+      options && options.silent
+    ) {
+      console.warn(
+        `[vuex] mutation type: ${type}. Silent option has been removed. ` +
+        'Use the filter functionality in the vue-devtools'
+      )
+    }
+  }
+
+  dispatch (_type, _payload) {
+    // check object-style dispatch
+    const {
+      type,
+      payload
+    } = unifyObjectStyle(_type, _payload)
+
+    const action = { type, payload }
+    const entry = this._actions[type]
+    if (!entry) {
+      if (__DEV__) {
+        console.error(`[vuex] unknown action type: ${type}`)
+      }
+      return
+    }
+
+    try {
+      this._actionSubscribers
+        .slice() // shallow copy to prevent iterator invalidation if subscriber synchronously calls unsubscribe
+        .filter(sub => sub.before)
+        .forEach(sub => sub.before(action, this.state))
+    } catch (e) {
+      if (__DEV__) {
+        console.warn(`[vuex] error in before action subscribers: `)
+        console.error(e)
+      }
+    }
+
+    const result = entry.length > 1
+      ? Promise.all(entry.map(handler => handler(payload)))
+      : entry[0](payload)
+
+    return new Promise((resolve, reject) => {
+      result.then(res => {
+        try {
+          this._actionSubscribers
+            .filter(sub => sub.after)
+            .forEach(sub => sub.after(action, this.state))
+        } catch (e) {
+          if (__DEV__) {
+            console.warn(`[vuex] error in after action subscribers: `)
+            console.error(e)
+          }
+        }
+        resolve(res)
+      }, error => {
+        try {
+          this._actionSubscribers
+            .filter(sub => sub.error)
+            .forEach(sub => sub.error(action, this.state, error))
+        } catch (e) {
+          if (__DEV__) {
+            console.warn(`[vuex] error in error action subscribers: `)
+            console.error(e)
+          }
+        }
+        reject(error)
+      })
+    })
+  }
+
+  // ......
+
+  _withCommit (fn) {
+    const committing = this._committing
+    this._committing = true
+    fn()
+    this._committing = committing
+  }
+}
+// Vuex提供了两种风格的dipatch和commit的调用传参：载荷形式(type, payload)和对象形式({ type, payload })。
+// 这个方法就是用来处理并统一这两种传参方式。
+function unifyObjectStyle (type, payload, options) {
+  if (isObject(type) && type.type) {
+    options = payload
+    payload = type
+    type = type.type
+  }
+
+  if (__DEV__) {
+    assert(typeof type === 'string', `expects string as the type, but found ${typeof type}.`)
+  }
+
+  return { type, payload, options }
+}
+```
+
+## 3. 安装模块 installModule(this, state, [], this._modules.root)
 this：当前Store的实例，state： 根模块的state，[]表示根模块路径， this._modules.root： 根模块 。 与ModuleCollection的register方法一样，都是内部去维护这个path路径变量。
 ```javascript
 // src/store.js
@@ -252,7 +398,10 @@ function installModule (store, rootState, path, module, hot) {
   })
 }
 ```
-然后再来看下makeLocalContext函数的实现。这是为什么能在定义action和mutation函数时时通过第一个参数可以拿到commit方法及state。
+然后再来看下makeLocalContext函数的实现。我们可以在定义mutation函数时第一个参数可以拿到state对象，而在定义action函数时通过第一个参数拿到context。
+<details>
+<summary>const local = module.context = makeLocalContext(store, namespace, path)</summary>
+
 ```javascript
 // src/store.js
 /**
@@ -317,7 +466,9 @@ function makeLocalContext (store, namespace, path) {
   return local
 }
 ```
-## 5. 初始化Vue实例 resetStoreVM(this, state), 通过将state挂到vm上来实现响应式。
+</details>
+
+## 4. 初始化Vue实例 resetStoreVM(this, state), 通过将state挂到vm的data上来实现响应式数据。
 ```javascript
 // src/store.js'
 function resetStoreVM (store, state, hot) {
@@ -340,9 +491,8 @@ function resetStoreVM (store, state, hot) {
     })
   })
 
-  // use a Vue instance to store the state tree
-  // suppress warnings just in case the user has added
-  // some funky global mixins
+  // 用一个vue实例来存储state
+  // 禁用vue的警告和错误日志
   const silent = Vue.config.silent
   Vue.config.silent = true
   store._vm = new Vue({
@@ -369,7 +519,7 @@ function resetStoreVM (store, state, hot) {
     Vue.nextTick(() => oldVm.$destroy())
   }
 }
-// vuex中，如果开启严格模式，那么在非mutation中对state种值的修改会触发抛出错误。
+// vuex中，如果开启严格模式，那么在非mutation中对state中值的修改会触发抛出错误。
 // 激活严格模式。不难发现其是通过vm的$watch来深度同步监听state中的值的变化，如果当前store._committing为false 那么就会抛出错误。而通过_withCommit方法包装执行的函数，会在内部将store._committing设置为true，修改完后再变为原来的状态，这种方式避免抛出错误。
 function enableStrictMode (store) {
   store._vm.$watch(function () { return this._data.$$state }, () => {
@@ -379,8 +529,8 @@ function enableStrictMode (store) {
   }, { deep: true, sync: true })
 }
 ```
-## 6. 组件绑定的辅助
-## 7. 其他
+## 5. 辅助函数
+## 6. 其他
 #### 1. Array.prototype.reduce方法
 1. 将数组按照一定的规则整合成一个值（累计，拼接字符串，转对象）。
 2. 按照路径在树型结构中查找数据。
