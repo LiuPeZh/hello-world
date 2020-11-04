@@ -90,7 +90,9 @@ export class Store {
   }
 }
 ```
-## 3. 模块的实现 new ModuleCollection(options)
+<details>
+<summary>## 3. 模块的实现 new ModuleCollection(options)</summary>
+
 模块在vuex中是很重要的一部分。因为采用了单一状态树模型，所以在状态较多的时候，代码层面就显得很复杂。通过模块化可以解决这个问题。而它的模块实质就是一颗树的结构。
 在vuex中，是通过ModuleCollection类来管理模块的。
 ```javascript
@@ -194,6 +196,7 @@ export default class Module {
   }
 }
 ```
+</details>
 ## 4. 安装模块 installModule(this, state, [], this._modules.root)
 this：当前Store的实例，state： 根模块的state，[]表示根模块路径， this._modules.root： 根模块 。 与ModuleCollection的register方法一样，都是内部去维护这个path路径变量。
 ```javascript
