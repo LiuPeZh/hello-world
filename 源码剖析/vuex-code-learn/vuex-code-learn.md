@@ -105,7 +105,7 @@ export class Store {
 <details>
 <summary>new ModuleCollection(options)</summary>
 
-模块在vuex中是很重要的一部分。因为采用了单一状态树模型，所以在状态较多的时候，代码层面就显得很复杂。通过模块化可以解决这个问题。而它的模块实质就是一颗树的结构。
+模块在vuex中是很重要的一部分。因为采用了单一状态树模型，所以在状态较多的时候，代码层面就显得很复杂。通过模块化可以解决这个问题，因为这样就能在各自的模块中去提交（commit）和分发（dispatch）各自的状态。
 在vuex中，是通过ModuleCollection类来管理模块的。
 ```javascript
 // src/store.js
