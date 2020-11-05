@@ -1,3 +1,14 @@
+通常当我们需要在多个组件中共享状态的时候，一般会采用这几种方式：
+1. 通过props和$emit，$attrs和$listeners，provide和inject
+2. 使用事件总线 event bus
+3. 通过Vue.observable
+4. 通过vuex。
+在组件嵌套较多的情况下，1和2这种方式会使得代码很复杂，难以对数据的流向进行预测及调试。3可以很轻便的实现响应式的数据，但如果没有对状态操作的封装，也会使得代码变乱。
+而vuex是vue官方专为vue打造的状态管理工具。它提供了一套规范性的状态管理，使得状态集都集中在一块，同时也使得状态的变化可以被跟踪，从而能方便开发时的调试，代码的可读性也会提高。所以在规模较大、需要共享的状态较多的项目中，使用vuex是非常有必要的。接下来具体看一下vuex的主要源码。
+
+![vuex的数据流](https://github.com/LiuPeZh/hello-world/blob/master/%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90/vuex-code-learn/img/vuex-flow.png?raw=true)
+
+接下来看下具体的实现。
 ## 1. vuex的安装（Vue.use(Vuex)
 ```javascript
 // src/store.js
@@ -37,6 +48,13 @@ export default function (Vue) {
 ```
 vuex的安装是通过全局混入beforeCreate钩子函数来进行的，在vue中作为被混入的生命周期函数，它是不会被覆盖，而是会按混入的顺序依次去执行。在root组件中直接挂载$store，在非root组件中挂载的则是父组件的$store，因为父子组件的生命周期触发是 父beforeCreate --> 子berforeCreate 这样的顺序去触发的，最终通过层层的挂载$store，使得每个组件中都可以访问到，同时它们也都同一个对象。
 ## 2. new Vuex.store(opt)的流程。
+Store实例的创建可分为这几个部分，
+  1. 环境判断; 
+  2. 存储内部状态; 
+  3. 创建module集合; 
+  4. 绑定dispatch和commit方法;
+  5. 安装module;
+  6. 初始化vue实例;
 ```javascript
 // src/mixin.js
 export class Store {
@@ -137,7 +155,7 @@ class ModuleCollection {
 }
 ```
 在register方法中内部维护了一个path路径变量，这种方式在vuex源码的其他部分也常用到。
-然后具体来看一下Module类的实现。这个类提供了当前模块对子模块的增删改查的操作，以及对子模块和当前模块的getter、actions、mutation遍历的方法。
+然后具体来看一下Module类的实现。这个类提供了当前模块对子模块的增删查的操作及对自身改的操作，以及对子模块、当前模块的getter、actions、mutation遍历的方法。
 ```javascript
 // src/module/module.js
 export default class Module {
@@ -208,6 +226,8 @@ export default class Module {
   }
 }
 ```
+![modules](https://github.com/LiuPeZh/hello-world/blob/master/%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90/vuex-code-learn/img/module-collection-ins.png?raw=true)
+
 </details>
 
 ### 2-2. dispatch和commit的实现
@@ -585,7 +605,212 @@ function enableStrictMode (store) {
 从本质上来说vuex就是一个vue组件，只不过这个组件没有template、render等属性。通过将state挂载到vm的data上，将getter挂载到vm的computed，来实现响应式的数据。从设计上来看getter是依赖state的，因此在该vm中和state分别对应到computed和data上。
 
 ## 5. 辅助函数
-## 6. 其他
-#### 1. Array.prototype.reduce方法
+辅助函数能帮我们在组件中使用vuex时简洁方便一些。vuex提供了5个辅助函数分别是：mapState、mapGetters、mapActions、mapMutations、createNamespacedHelpers。
+
+```javascript
+// src/helper.js
+import { isObject } from './util'
+
+/**
+ * Normalize the map
+ * normalizeMap([1, 2, 3]) => [ { key: 1, val: 1 }, { key: 2, val: 2 }, { key: 3, val: 3 } ]
+ * normalizeMap({a: 1, b: 2, c: 3}) => [ { key: 'a', val: 1 }, { key: 'b', val: 2 }, { key: 'c', val: 3 } ]
+ * @param {Array|Object} map
+ * @return {Object}
+ */
+function normalizeMap (map) {
+  if (!isValidMap(map)) {
+    return []
+  }
+  return Array.isArray(map)
+    ? map.map(key => ({ key, val: key }))
+    : Object.keys(map).map(key => ({ key, val: map[key] }))
+}
+
+/**
+ * Validate whether given map is valid or not
+ * @param {*} map
+ * @return {Boolean}
+ */
+function isValidMap (map) {
+  return Array.isArray(map) || isObject(map)
+}
+
+/**
+ * Return a function expect two param contains namespace and map. it will normalize the namespace and then the param's function will handle the new namespace and the map.
+ * @param {Function} fn
+ * @return {Function}
+ */
+function normalizeNamespace (fn) {
+  return (namespace, map) => {
+    if (typeof namespace !== 'string') {
+      map = namespace
+      namespace = ''
+    } else if (namespace.charAt(namespace.length - 1) !== '/') {
+      namespace += '/'
+    }
+    return fn(namespace, map)
+  }
+}
+
+/**
+ * Search a special module from store by namespace. if module not exist, print error message.
+ * @param {Object} store
+ * @param {String} helper
+ * @param {String} namespace
+ * @return {Object}
+ */
+function getModuleByNamespace (store, helper, namespace) {
+  const module = store._modulesNamespaceMap[namespace]
+  if (__DEV__ && !module) {
+    console.error(`[vuex] module namespace not found in ${helper}(): ${namespace}`)
+  }
+  return module
+}
+
+/**
+ * Reduce the code which written in Vue.js for getting the state.
+ * @param {String} [namespace] - Module's namespace
+ * @param {Object|Array} states # Object's item can be a function which accept state and getters for param, you can do something for state and getters in it.
+ * @param {Object}
+ */
+export const mapState = normalizeNamespace((namespace, states) => {
+  const res = {}
+  if (__DEV__ && !isValidMap(states)) {
+    console.error('[vuex] mapState: mapper parameter must be either an Array or an Object')
+  }
+  normalizeMap(states).forEach(({ key, val }) => {
+    res[key] = function mappedState () {
+      let state = this.$store.state
+      let getters = this.$store.getters
+      if (namespace) {
+        const module = getModuleByNamespace(this.$store, 'mapState', namespace)
+        if (!module) {
+          return
+        }
+        state = module.context.state
+        getters = module.context.getters
+      }
+      return typeof val === 'function'
+        ? val.call(this, state, getters)
+        : state[val]
+    }
+    // mark vuex getter for devtools
+    res[key].vuex = true
+  })
+  return res
+})
+
+/**
+ * Reduce the code which written in Vue.js for committing the mutation
+ * @param {String} [namespace] - Module's namespace
+ * @param {Object|Array} mutations # Object's item can be a function which accept `commit` function as the first param, it can accept anthor params. You can commit mutation and do any other things in this function. specially, You need to pass anthor params from the mapped function.
+ * @return {Object}
+ */
+export const mapMutations = normalizeNamespace((namespace, mutations) => {
+  const res = {}
+  if (__DEV__ && !isValidMap(mutations)) {
+    console.error('[vuex] mapMutations: mapper parameter must be either an Array or an Object')
+  }
+  normalizeMap(mutations).forEach(({ key, val }) => {
+    res[key] = function mappedMutation (...args) {
+      // Get the commit method from store
+      let commit = this.$store.commit
+      if (namespace) {
+        const module = getModuleByNamespace(this.$store, 'mapMutations', namespace)
+        if (!module) {
+          return
+        }
+        commit = module.context.commit
+      }
+      return typeof val === 'function'
+        ? val.apply(this, [commit].concat(args))
+        : commit.apply(this.$store, [val].concat(args))
+    }
+  })
+  return res
+})
+
+/**
+ * Reduce the code which written in Vue.js for getting the getters
+ * @param {String} [namespace] - Module's namespace
+ * @param {Object|Array} getters
+ * @return {Object}
+ */
+export const mapGetters = normalizeNamespace((namespace, getters) => {
+  const res = {}
+  if (__DEV__ && !isValidMap(getters)) {
+    console.error('[vuex] mapGetters: mapper parameter must be either an Array or an Object')
+  }
+  normalizeMap(getters).forEach(({ key, val }) => {
+    // The namespace has been mutated by normalizeNamespace
+    val = namespace + val
+    res[key] = function mappedGetter () {
+      if (namespace && !getModuleByNamespace(this.$store, 'mapGetters', namespace)) {
+        return
+      }
+      if (__DEV__ && !(val in this.$store.getters)) {
+        console.error(`[vuex] unknown getter: ${val}`)
+        return
+      }
+      return this.$store.getters[val]
+    }
+    // mark vuex getter for devtools
+    res[key].vuex = true
+  })
+  return res
+})
+
+/**
+ * Reduce the code which written in Vue.js for dispatch the action
+ * @param {String} [namespace] - Module's namespace
+ * @param {Object|Array} actions # Object's item can be a function which accept `dispatch` function as the first param, it can accept anthor params. You can dispatch action and do any other things in this function. specially, You need to pass anthor params from the mapped function.
+ * @return {Object}
+ */
+export const mapActions = normalizeNamespace((namespace, actions) => {
+  const res = {}
+  if (__DEV__ && !isValidMap(actions)) {
+    console.error('[vuex] mapActions: mapper parameter must be either an Array or an Object')
+  }
+  normalizeMap(actions).forEach(({ key, val }) => {
+    res[key] = function mappedAction (...args) {
+      // get dispatch function from store
+      let dispatch = this.$store.dispatch
+      if (namespace) {
+        const module = getModuleByNamespace(this.$store, 'mapActions', namespace)
+        if (!module) {
+          return
+        }
+        dispatch = module.context.dispatch
+      }
+      return typeof val === 'function'
+        ? val.apply(this, [dispatch].concat(args))
+        : dispatch.apply(this.$store, [val].concat(args))
+    }
+  })
+  return res
+})
+
+/**
+ * Rebinding namespace param for mapXXX function in special scoped, and return them by simple object
+ * @param {String} namespace
+ * @return {Object}
+ */
+export const createNamespacedHelpers = (namespace) => ({
+  mapState: mapState.bind(null, namespace),
+  mapGetters: mapGetters.bind(null, namespace),
+  mapMutations: mapMutations.bind(null, namespace),
+  mapActions: mapActions.bind(null, namespace)
+})
+```
+## 6. 总结
+### 1. Array.prototype.reduce方法
 1. 将数组按照一定的规则整合成一个值（累计，拼接字符串，转对象）。
 2. 按照路径在树型结构中查找数据。
+### 2. 函数柯里化
+1. 绑定函数的this, 在通过赋值操作的时候确保函数中的this不丢失。
+2. 包装函数，统一处理函数的参数及延迟函数执行。
+### 3. getter ( Object.defineProperty、class及proxy )
+通过getter可以使得取值的步骤延迟到访问属性的时候。
+### 4. 代码编写层面
+遵循单一职责，解耦各个模块。如源码中的ModuleCollection类和Module类，一个是用于管理模块，一个是用于模块本身。
