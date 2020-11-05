@@ -1,15 +1,16 @@
-通常当我们需要在多个组件中共享状态的时候，一般会采用这几种方式：
+通常当我们需要在多个组件中共享状态的时候（组件间的通信），一般会采用这几种方式：
 1. 通过props和$emit，$attrs和$listeners，provide和inject
 2. 使用事件总线 event bus
 3. 通过Vue.observable
 4. 通过vuex。
-在组件嵌套较多的情况下，1和2这种方式会使得代码很复杂，难以对数据的流向进行预测及调试。3可以很轻便的实现响应式的数据，但如果没有对状态操作的封装，也会使得代码变乱。
-而vuex是vue官方专为vue打造的状态管理工具。它提供了一套规范性的状态管理，使得状态集都集中在一块，同时也使得状态的变化可以被跟踪，从而能方便开发时的调试，代码的可读性也会提高。所以在规模较大、需要共享的状态较多的项目中，使用vuex是非常有必要的。接下来具体看一下vuex的主要源码。
+在组件嵌套较多的情况下，1和2这种方式会使得代码很复杂，难以对数据的流向进行预测及调试。3虽然可以很轻量的创建响应式的数据，但如果没有对状态操作的封装，也会使得代码变乱。
+而vuex是vue官方专为vue打造的状态管理工具。它提供了一套规范性的状态管理，使得状态都集中在一块，同时也使得状态的变化可以被跟踪（因为只能通过提交mutation的时候才能改变状态），从而能方便开发时的调试，代码的可读性也会提高。所以在规模较大、需要共享的状态较多的项目中，使用vuex能够很好的帮我们去调试及组织代码。
 
 ![vuex的数据流](https://github.com/LiuPeZh/hello-world/blob/master/%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90/vuex-code-learn/img/vuex-flow.png?raw=true)
+vuex的数据流模型是这样的：从vue组件中dispatch（分发）了一个action后，在这个action中可能会去异步的调用后端接口获取数据或者去进行了某个操作，然后它会commit（提交）了一个mutation，在mutation内部会去修改state（状态）中的某个属性，因为state是响应式的，所以它的变化会引起vue组件的更新，从而展示新的内容。
 
-接下来看下具体的实现。
-## 1. vuex的安装（Vue.use(Vuex)
+接下来看下vuex具体的实现。
+## 1. vuex的安装( Vue.use(Vuex) )
 ```javascript
 // src/store.js
 let Vue // bind on install
@@ -29,13 +30,30 @@ export function install (_Vue) {
 appalyMixin方法
 ```javascript
 // src/mixin.js
+/**
+ *  new Vue({
+ *    el: '#app',
+ *    store,
+ *    render: h => h(App)
+ *  })
+*/
 export default function (Vue) {
-  // ... 判断vue版本，mixin是vue2.x中的方法，vue1.0版本是重写init方法来实现注入。
-  Vue.mixin({ beforeCreate: vuexInit })
+  // 判断vue版本，mixin是vue2.x中的方法，vue1.0版本是重写init方法来实现注入。
+  const version = Number(Vue.version.split('.')[0])
+  if (version >= 2) {
+    Vue.mixin({ beforeCreate: vuexInit })
+  } else {
+    const _init = Vue.prototype._init
+    Vue.prototype._init = function (options = {}) {
+      options.init = options.init
+        ? [vuexInit].concat(options.init)
+        : vuexInit
+      _init.call(this, options)
+    }
+  }
   // 将store实例注入到每个组件中。
   function vuexInit () {
     const options = this.$options
-    // store injection
     if (options.store) { // root节点组件的注入
       this.$store = typeof options.store === 'function'
         ? options.store()
@@ -56,11 +74,36 @@ Store实例的创建可分为这几个部分，
   5. 安装module;
   6. 初始化vue实例;
 ```javascript
+new Vuex.Store({
+  state: {
+    // ... 定义状态 
+  },
+  getters: {
+    // ... 定义getter
+  },
+  actions: {
+    // ... 定义actions函数
+  },
+  mutations: {
+    // ... 定义mutations函数
+  }
+})
+```
+```javascript
 // src/mixin.js
 export class Store {
   constructor (options = {}) {
-    // ... 用于自动安装Vuex 以及 判断环境（Vue，Promise，以及stroe单例）。
-    // assert(this instanceof Store, `store must be called with the new operator.`)
+    // ... 用于自动安装Vuex 以及 判断环境（Vue，Promise，以及是否是通过new的方式调用）。
+    if (!Vue && typeof window !== 'undefined' && window.Vue) {
+      install(window.Vue)
+    }
+    debugger
+    if (__DEV__) {
+      assert(Vue, `must call Vue.use(Vuex) before creating a store instance.`)
+      assert(typeof Promise !== 'undefined', `vuex requires a Promise polyfill in this browser.`)
+      assert(this instanceof Store, `store must be called with the new operator.`)
+    }
+
     const {
       plugins = [],
       strict = false
@@ -123,11 +166,12 @@ export class Store {
 <details>
 <summary>new ModuleCollection(options)</summary>
 
-模块在vuex中是很重要的一部分。因为采用了单一状态树模型，所以在状态较多的时候，代码层面就显得很复杂。通过模块化可以解决这个问题，因为这样就能在各自的模块中去提交（commit）和分发（dispatch）各自的状态。
-在vuex中，是通过ModuleCollection类来管理模块的。
+模块在vuex中是很重要的一部分。因为采用了单一状态树模型，所以在状态较多的时候，所有状态及操作都写在一块时代码层面就显得很复杂。通过模块化可以解决这个问题，因为这样就能在各自的模块中去提交（commit）和分发（dispatch）各自的状态。
+在vuex中，是通过ModuleCollection类来管理模块的（模块的注册和创建）。
 ```javascript
 // src/store.js
 class ModuleCollection {
+  // rawRootModule 是原始配置项
   constructor (rawRootModule) {
     // register root module (Vuex.Store options) 注册根模块
     this.register([], rawRootModule, false)
@@ -141,29 +185,35 @@ class ModuleCollection {
     if (path.length === 0) { // 通过path来判断是否为根模块
       this.root = newModule
     } else {
-      const parent = this.get(path.slice(0, -1))
-      parent.addChild(path[path.length - 1], newModule)
+      const parent = this.get(path.slice(0, -1)) // 找到父模块实例
+      parent.addChild(path[path.length - 1], newModule) // 调用父模块实例的addChild方法将当前模块添加到父模块的内部_children对象上。
     }
 
     // register nested modules 注册嵌套模块
     if (rawModule.modules) {
       forEachValue(rawModule.modules, (rawChildModule, key) => {
-        this.register(path.concat(key), rawChildModule, runtime)
+        this.register(path.concat(key), rawChildModule, runtime) // 递归调用 注册子模块
       })
     }
   }
+  getNamespace (path) {
+    let module = this.root
+    return path.reduce((namespace, key) => {
+      module = module.getChild(key)
+      return namespace + (module.namespaced ? key + '/' : '')
+    }, '')
+  }
 }
 ```
-在register方法中内部维护了一个path路径变量，这种方式在vuex源码的其他部分也常用到。
+在register方法中内部维护了一个path路径变量，这种方式在vuex源码的其他部分也常用到。它会用于判断是否为root模块及通过path找到相应的模块。
 然后具体来看一下Module类的实现。这个类提供了当前模块对子模块的增删查的操作及对自身改的操作，以及对子模块、当前模块的getter、actions、mutation遍历的方法。
 ```javascript
 // src/module/module.js
 export default class Module {
+  // rawModule 原始的配置项（和上述的rawRootModule有些区别，它可能是root部分的也可能是子模块部分的）
   constructor (rawModule, runtime) {
     this.runtime = runtime
-    // Store some children item
     this._children = Object.create(null)
-    // Store the origin module object which passed by programmer
     this._rawModule = rawModule
     const rawState = rawModule.state
 
@@ -339,7 +389,7 @@ export class Store {
   }
 
   // ......
-
+  // 在该方法内 将标志位_committing设置为true 然后再调用了传进来的函数，最后又将_committing复位。主要用于确保再严格模式下，状态的修改只能再mutation中进行。后续初始化vue实例的方法中会说明为什么这样就能确保。
   _withCommit (fn) {
     const committing = this._committing
     this._committing = true
@@ -363,6 +413,8 @@ function unifyObjectStyle (type, payload, options) {
   return { type, payload, options }
 }
 ```
+两个方法的基本流程相同，都是，1.格式化参数；2.拿到格式化后的type和payload；3然后通过type获取响应的actions和mutations函数数组；4.调用；5.触发订阅的内容；在最后dispatch还会返回一个Promise对象，用来组合actions。
+调用的不同点在于，commit中相应mutations的调用是通过_withCommit包装后的，而dispatch中相应actions的调用是通过Promise.all方法的。
 </details>
 
 ## 3. 安装模块 installModule(this, state, [], this._modules.root)
@@ -420,9 +472,19 @@ function installModule (store, rootState, path, module, hot) {
     installModule(store, rootState, path.concat(key), child, hot)
   })
 }
+function getNestedState (state, path) {
+  return path.reduce((state, key) => state[key], state)
+}
 function registerMutation (store, type, handler, local) {
-  const entry = store._mutations[type] || (store._mutations[type] = [])
+  // 在Store实例的_mutations对象上去获取key为type的函数数组， 如果不存在在赋值一个空数组
+  const entry = store._mutations[type] || (store._mutations[type] = []) 
   entry.push(function wrappedMutationHandler (payload) {
+    // 使用call绑定store调用，第一个参数是局部的state。
+    /**
+     *  increment (state, payload) {
+     *    state.count += payload
+     *  }
+     */
     handler.call(store, local.state, payload)
   })
 }
@@ -430,6 +492,12 @@ function registerMutation (store, type, handler, local) {
 function registerAction (store, type, handler, local) {
   const entry = store._actions[type] || (store._actions[type] = [])
   entry.push(function wrappedActionHandler (payload) {
+    // 使用call绑定store调用，第一个参数是一个具有多个属性的context。
+    /**
+     *  increment (context) {
+     *    context.commit('increment')
+     *  }
+      */
     let res = handler.call(store, {
       dispatch: local.dispatch,
       commit: local.commit,
@@ -459,6 +527,12 @@ function registerGetter (store, type, rawGetter, local) {
     }
     return
   }
+  // 与mutations和actions的存储不同，getter不会被多个同类型的给覆盖。
+  /**
+   *  doneTodos: state => {
+   *    return state.todos.filter(todo => todo.done)
+   *  }
+   */
   store._wrappedGetters[type] = function wrappedGetter (store) {
     return rawGetter(
       local.state, // local state
@@ -469,9 +543,8 @@ function registerGetter (store, type, rawGetter, local) {
   }
 }
 ```
-在不开启命名空间的情况下，commit和dispatch会触发所有全局的mutation和action，
-再创建完局部上下文环境后， 接下来会去注册当前模块下的getters、mutations和actions。
-然后再来看下makeLocalContext函数的实现。我们可以在定义mutation函数时第一个参数可以拿到state对象，而在定义action函数时通过第一个参数拿到context。
+在不开启命名空间的情况下，commit和dispatch会触发所有全局的mutation和action，这样使得多个模块能够对同一 mutation 或 action 作出响应。当开启命名空间后getter、action 及 mutation 都会自动根据模块注册的路径调整命名。
+然后再来看下makeLocalContext函数的实现。
 <details>
 <summary>const local = module.context = makeLocalContext(store, namespace, path)</summary>
 
@@ -537,6 +610,30 @@ function makeLocalContext (store, namespace, path) {
   })
 
   return local
+}
+function makeLocalGetters (store, namespace) {
+  if (!store._makeLocalGettersCache[namespace]) {
+    const gettersProxy = {}
+    const splitPos = namespace.length
+    Object.keys(store.getters).forEach(type => {
+      // skip if the target getter is not match this namespace
+      if (type.slice(0, splitPos) !== namespace) return
+
+      // extract local getter type
+      const localType = type.slice(splitPos)
+
+      // Add a port to the getters proxy.
+      // Define as getter property because
+      // we do not want to evaluate the getters in this time.
+      Object.defineProperty(gettersProxy, localType, {
+        get: () => store.getters[type],
+        enumerable: true
+      })
+    })
+    store._makeLocalGettersCache[namespace] = gettersProxy
+  }
+
+  return store._makeLocalGettersCache[namespace]
 }
 ```
 </details>
