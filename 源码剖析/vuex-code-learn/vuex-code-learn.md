@@ -68,7 +68,7 @@ vuex的安装是通过全局混入beforeCreate钩子函数来进行的，在vue�
 ## 2. new Vuex.store(opt)的流程。
 Store实例的创建可分为这几个部分，
   1. 环境判断; 
-  2. 存储内部状态; 
+  2. 初始化内部状态; 
   3. 创建module集合; 
   4. 绑定dispatch和commit方法;
   5. 安装module;
@@ -109,12 +109,12 @@ export class Store {
       strict = false
     } = options
 
-    // 存储内部状态
+    // 初始化内部状态
     this._committing = false // commit标志位，用于判断state的变化是否是由commit触发的。
     this._actions = Object.create(null) // actions集合
-    this._actionSubscribers = [] // actions订阅数组
+    this._actionSubscribers = []
     this._mutations = Object.create(null) // mutations集合
-    this._wrappedGetters = Object.create(null)
+    this._wrappedGetters = Object.create(null) // getter 集合
     this._modules = new ModuleCollection(options) // 创建模块
     this._modulesNamespaceMap = Object.create(null)
     this._subscribers = []
@@ -398,7 +398,7 @@ export class Store {
   }
 }
 // Vuex提供了两种风格的dipatch和commit的调用传参：载荷形式(type, payload)和对象形式({ type, payload })。
-// 这个方法就是用来处理并统一这两种传参方式。
+// 这个方法就是用来将这两种传参方式做统一处理为对象风格的。
 function unifyObjectStyle (type, payload, options) {
   if (isObject(type) && type.type) {
     options = payload
@@ -452,6 +452,7 @@ function installModule (store, rootState, path, module, hot) {
   // 创建局部上下文环境
   const local = module.context = makeLocalContext(store, namespace, path)
 
+  // 在不开启命名空间的情况下，commit和dispatch会触发所有全局的mutation和action，这样使得多个模块能够对同一 mutation 或 action 作出响应。当开启命名空间后getter、action 及 mutation 都会自动根据模块注册的路径调整命名。
   module.forEachMutation((mutation, key) => {
     const namespacedType = namespace + key
     registerMutation(store, namespacedType, mutation, local)
@@ -543,8 +544,8 @@ function registerGetter (store, type, rawGetter, local) {
   }
 }
 ```
-在不开启命名空间的情况下，commit和dispatch会触发所有全局的mutation和action，这样使得多个模块能够对同一 mutation 或 action 作出响应。当开启命名空间后getter、action 及 mutation 都会自动根据模块注册的路径调整命名。
-然后再来看下makeLocalContext函数的实现。
+
+在getter、mutations和actions中定义的函数第一个参数可以拿到局部的状态或上下文环境，这个局部的上下文环境主要是由makeLocalContext函数来实现的。
 <details>
 <summary>const local = module.context = makeLocalContext(store, namespace, path)</summary>
 
@@ -553,9 +554,9 @@ function registerGetter (store, type, rawGetter, local) {
 /**
  * make localized dispatch, commit, getters and state
  * if there is no namespace, just use root ones
- * @param { Stroe } store
- * @param { String } namespace
- * @param { String[] } path
+ * @param { Stroe } store store实例
+ * @param { String } namespace 命名空间
+ * @param { String[] } path 模块的路径
  * @return local object
  */
 function makeLocalContext (store, namespace, path) {
@@ -680,12 +681,12 @@ function resetStoreVM (store, state, hot) {
 
   if (oldVm) {
     if (hot) {
-      // dispatch changes in all subscribed watchers
-      // to force getter re-evaluation for hot reloading.
+      // 将之前的state置空
       store._withCommit(() => {
         oldVm._data.$$state = null
       })
     }
+    // 销毁之前的vue实例
     Vue.nextTick(() => oldVm.$destroy())
   }
 }
@@ -702,14 +703,14 @@ function enableStrictMode (store) {
 从本质上来说vuex就是一个vue组件，只不过这个组件没有template、render等属性。通过将state挂载到vm的data上，将getter挂载到vm的computed，来实现响应式的数据。从设计上来看getter是依赖state的，因此在该vm中和state分别对应到computed和data上。
 
 ## 5. 辅助函数
-辅助函数能帮我们在组件中使用vuex时简洁方便一些。vuex提供了5个辅助函数分别是：mapState、mapGetters、mapActions、mapMutations、createNamespacedHelpers。
+辅助函数能帮我们在组件中使用vuex时简洁方便一些。vuex提供了5个辅助函数分别是：mapState、mapGetters、mapActions、mapMutations、createNamespacedHelpers。其中前4个方法中的流程基本一致，都是： 1. 创建空对象res；2. 判断要映射到vue组件上的属性名数组或方法名数组（下文简称map）是否和法；3. 格式化map；4. 遍历格式化后的对象数组将属性名或方法名存储到res上；5. 返回res。
 
 ```javascript
 // src/helper.js
 import { isObject } from './util'
 
 /**
- * Normalize the map
+ * 格式化数组或对象 输出一个对象数组。
  * normalizeMap([1, 2, 3]) => [ { key: 1, val: 1 }, { key: 2, val: 2 }, { key: 3, val: 3 } ]
  * normalizeMap({a: 1, b: 2, c: 3}) => [ { key: 'a', val: 1 }, { key: 'b', val: 2 }, { key: 'c', val: 3 } ]
  * @param {Array|Object} map
@@ -734,7 +735,8 @@ function isValidMap (map) {
 }
 
 /**
- * Return a function expect two param contains namespace and map. it will normalize the namespace and then the param's function will handle the new namespace and the map.
+ * 返回一个函数，这个函数具有两个参数，第一个是命名空间，第二个是要映射的数组。它的内部会将传参进行处理，
+ * ('模块名', [...])  或者 ([...]) 
  * @param {Function} fn
  * @return {Function}
  */
@@ -751,7 +753,8 @@ function normalizeNamespace (fn) {
 }
 
 /**
- * Search a special module from store by namespace. if module not exist, print error message.
+ * 在installModule的方法中，会按命名空间（如果开启了命名空间）将模块存储到_modulesNamespaceMap对象中。
+ * 这个方法就是借助_modulesNamespaceMap对象来查找模块的。
  * @param {Object} store
  * @param {String} helper
  * @param {String} namespace
@@ -766,6 +769,16 @@ function getModuleByNamespace (store, helper, namespace) {
 }
 
 /**
+ * Vue中的使用 三种例子
+ *  computed: mapState({
+ *    count: state => state.count,
+ *  })
+ *  computed: mapState([
+ *    'count',
+ *  ])
+ *  computed: mapState('some/nested/module', [
+ *    'a',
+ *  ])
  * Reduce the code which written in Vue.js for getting the state.
  * @param {String} [namespace] - Module's namespace
  * @param {Object|Array} states # Object's item can be a function which accept state and getters for param, you can do something for state and getters in it.
@@ -776,6 +789,7 @@ export const mapState = normalizeNamespace((namespace, states) => {
   if (__DEV__ && !isValidMap(states)) {
     console.error('[vuex] mapState: mapper parameter must be either an Array or an Object')
   }
+
   normalizeMap(states).forEach(({ key, val }) => {
     res[key] = function mappedState () {
       let state = this.$store.state
@@ -900,6 +914,7 @@ export const createNamespacedHelpers = (namespace) => ({
   mapActions: mapActions.bind(null, namespace)
 })
 ```
+
 ## 6. 总结
 ### 1. Array.prototype.reduce方法
 1. 将数组按照一定的规则整合成一个值（累计，拼接字符串，转对象）。
@@ -908,6 +923,6 @@ export const createNamespacedHelpers = (namespace) => ({
 1. 绑定函数的this, 在通过赋值操作的时候确保函数中的this不丢失。
 2. 包装函数，统一处理函数的参数及延迟函数执行。
 ### 3. getter ( Object.defineProperty、class及proxy )
-通过getter可以使得取值的步骤延迟到访问属性的时候。
+通过getter可以使得取值的步骤延迟到访问属性时。也可以通过这种方式去做一些额外的操作，比如代理某个属性。
 ### 4. 代码编写层面
-遵循单一职责，解耦各个模块。如源码中的ModuleCollection类和Module类，一个是用于管理模块，一个是用于模块本身。
+遵循单一职责，解耦各个模块。如源码中的ModuleCollection类和Module类，一个是用于管理Module(注册、注销等)，一个是用于Module本身。
