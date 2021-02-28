@@ -39,6 +39,8 @@ typescript 是 javascript 的超集。
   联合类型 union type 表示 一个集合中的某个。 交叉类型 相当于类型的并集， 
   - 6. 类型收缩与类型守卫
   ! ? 符号
+
+  从 ts 中的关键字来看 ts ： & | extend ? ! infer keyof typeof in as
 ## typescript 进阶
   - type 
   泛型 泛型约束
