@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BFC demo</title>
+  <style>
+    #common-block .outer {
+      outline: 1px solid blue;
+    }
+    #common-block .outer .inner {
+      width: 100px;
+      height: 60px;
+      outline: 1px solid red;
+    }
+    #float-block {
+
+    }
+    .hor-list {
+      outline: 1px solid blue;
+    }
+    .hor-list::after {
+      display: block;
+      height: 0;
+      visibility: hidden;
+      content: "";
+      clear: both;
+    }
+    .hor-list .float {
+      float: left;
+      width: 100px;
+      height: 60px;
+      outline: 1px solid red;
+    }
+    .float-block-two {
+      width: 200px;
+      height: 40px;
+      background-color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <div id="common-block">
+    普通块
+    <div class="outer">
+      <div class="inner"></div>
+    </div>
+  </div>
+  <div id="float-block">
+    浮动
+    <div class="hor-list">
+      <div class="float"></div>
+      <div class="float"></div>
+      <div class="float"></div>
+    </div>
+    <div class="float-block-two"></div>
+  </div>
+</body>
+</html>
