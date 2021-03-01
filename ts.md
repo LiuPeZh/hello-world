@@ -1,30 +1,41 @@
 ## typescript 基础
 typescript 是 javascript 的超集。
-### 类型
+本文将围绕 ts 中类型与新增的关键字来展开进行 ts 的讲解。
 本质上来讲，typescript 的类型系统采用的是结构类型，即只要两个变量类型的结构（shape）相同，那这两个类型就是相等的（两个类型的变量可以相互赋值）。
 通常类型在编译为 js 代码后会被直接去掉。
-  - 1. 基础类型、interface与type
-    基础类型分别为
-    Boolean Number String Symbol Bigint
-    Object
-    Array Tuple
-    Enum 
-    Enum 和 class 类型 既可以作为类型 也可以作为变量进行操作。编译后会转为相应的js代码。
-    ```typescript
-    enum Book {
-      JS = 'a',
-      TS = 'b'
-    }
+### 基础类型
+  基础类型可分为以下几种：普通类型，数组与元组，枚举类型
+  普通类型关键字: boolean number string symbol bigint unknown any void null undefined object
+  ### unkonow 和 any 的区别
+  ### Enum 枚举类型
+  ```typescript
+  enum Book {
+    JS = 'a',
+    TS = 'b'
+  }
 
-    var Book;
-    (function (Book) {
-        Book["JS"] = "a";
-        Book["TS"] = "b";
-    })(Book || (Book = {}));
-    ```
+  var Book;
+  (function (Book) {
+      Book["JS"] = "a";
+      Book["TS"] = "b";
+  })(Book || (Book = {}));
+  ```
+  Enum 和 class 类型 既可以作为类型 也可以作为变量进行操作。编译后会转为相应的js代码。
+  ### never
+  ### object
+  object 表示引用类型，也是所以引用类型的基类，也就是说其他的引用类型变量可以赋值给 object 类型变量，比如 数组类型 函数类型 等都可以进行赋值。
+  通常，object 可以作为 接口 规范去使用。
 
-    Unknown Any Void Null Undefined
-    Never
+  ### 数组与元组关键字: Array<T> T[] [T,D]
+
+### 高级类型
+  ### interface 和 type
+  ### class
+    抽象类
+    抽象类与interface的区别
+  ### 泛型
+### 类型外的关键字
+  ### ! ?
     class
     类型断言 as语法 和 尖括号语法 
   - 2. interface
