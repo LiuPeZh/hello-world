@@ -37,6 +37,13 @@ typescript 是 javascript 的超集。
   ### 泛型
 ### 类型外的关键字
   ### ! ?
+  ! 表示非空断言，用于标识变量不可能为 null 或 undefined
+  在 vue2 开发中 可以用于声明 props 中。
+  ```typescript
+  @Prop()
+  public data!: string
+  ```
+  也可以用于获取dom 等确定值不为 null 或 undefined 的情况。
     class
     类型断言 as语法 和 尖括号语法 
   - 2. interface
