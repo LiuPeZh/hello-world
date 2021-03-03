@@ -110,6 +110,8 @@ typescript 是 javascript 的超集。
 
 ### 类型编程
 1. 类型守卫
+  - 1. 定义作用
+  - 2. 相关操作符 in typeof instanceof
 
 2. 类型映射
 
