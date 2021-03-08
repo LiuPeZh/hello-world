@@ -20,14 +20,6 @@ typescript 是 javascript 的超集。
   let undefinedVar: undefined = undefined 
   // null 和 undefined 类型的值就是自身，通常不会像上述代码一样直接进行赋值， 而是通过复合成高级类型，再进行使用。
 
-  let obj: object = {
-    name: 'asd',
-    num: 123
-  }
-  // 有个问题需要注意：当对象被声明 object 类型后，访问或者修改该对象的属性时，会报错
-  obj.a = 'qwe' // Error -> Property 'a' does not exist on type 'object'.
-  // 所以通常情况下， 不要去使用 object 进行类型标注，而应使用 interface 和 type alias 去进行声明，然后标注。
-
   ```
 
   boolean 、number 、string 、symbol 、bigint 、null 和 undefined 基本和 js 中的普通类型一一对应。 其中除了 null 以外，其他类型就相当于 js 中使用 typeof 运算符的操作结果。
@@ -37,32 +29,32 @@ typescript 是 javascript 的超集。
 
 #### 2. unknown 和 any 
   - 1. unknow 
-  表示未知的类型，用于不确定的变量类型。任何类型都是它的 `subtype`， 也就是说任何类型变量都可以分配给它，但它只能分配给自身或 any 类型的变量。
-  ```typescript
-  let unkonwnVal: unknown
-  unkonwnVal = 1
-  unkonwnVal = 'a'
-  unkonwnVal = false
-  unkonwnVal = null
-  unkonwnVal = false
-  unkonwnVal = {
-      name: 'unknown value'
-  }
-  // ...
-  ```
-
-  实际使用中通常会先对`unknow`类型变量进行`类型收缩`，然后再进行具体的操作。如下代码：
-  ```typescript
-  // function foo(val: unknown): string | number
-  function foo(val: unknown) {
-    if (typeof val === 'function') {
-      val() // 这块 val 变量将会被推断为 函数类型 (parameter) val: Function
-    } else if (typeof val === 'number' || typeof val === 'string') {
-      return val // 而在这块， val 将会被推断成联合类型 string | number， (parameter) val: string | number
+    表示未知的类型，用于不确定的变量类型。任何类型都是它的 `subtype`， 也就是说任何类型变量都可以分配给它，但它只能分配给自身或 any 类型的变量。
+    ```typescript
+    let unkonwnVal: unknown
+    unkonwnVal = 1
+    unkonwnVal = 'a'
+    unkonwnVal = false
+    unkonwnVal = null
+    unkonwnVal = false
+    unkonwnVal = {
+        name: 'unknown value'
     }
-    throw Error('参数类型应该为：number、string和function')
-  }
-  ```
+    // ...
+    ```
+
+    实际使用中通常会先对`unknow`类型变量进行`类型收缩`，然后再进行具体的操作。如下代码：
+    ```typescript
+    // function foo(val: unknown): string | number
+    function foo(val: unknown) {
+      if (typeof val === 'function') {
+        val() // 这块 val 变量将会被推断为 函数类型 (parameter) val: Function
+      } else if (typeof val === 'number' || typeof val === 'string') {
+        return val // 而在这块， val 将会被推断成联合类型 string | number， (parameter) val: string | number
+      }
+      throw Error('参数类型应该为：number、string和function')
+    }
+    ```
   
   - 2. any 
   表示任何类型，它可以赋给任何类型变量，也可以接受任何类型变量。
@@ -215,14 +207,28 @@ typescript 是 javascript 的超集。
 
 #### 4. never
   never 类型 表示不存在的类型。
-  通常是一个从来不会有返回值的函数（如：如果函数内含有 while(true) {}）
-  或者一个总是会抛出错误的函数（如：function foo() { throw new Error('Not Implemented') }）
-  所返回的类型。
+  > 通常是一个从来不会有返回值的函数（如：如果函数内含有 while(true) {}）
+  > 或者一个总是会抛出错误的函数（如：function foo() { throw new Error('Not Implemented') }）
+  > 所返回的类型。
+  never 类型的变量只能被 never 类型的值进行赋值。
+  通常 never 类型会被结合 可辨识联合类型 或 校验分支完全性的时候去使用。
+  ```typescript
+
+  ```
 
 #### 5. object
   object 表示引用类型，它是所以引用类型的基类，也就是说其他的引用类型变量可以赋值给 object 类型变量，比如 数组类型 函数类型 等都可以进行赋值。
-  通常，在没有属性或方法的操作情况下，可以使用 object 作为类型。而当有属性访问，或者方法调用，那么在类型不收缩的情况下，ts 会报错。
-  如下代码, 是 ts 对于 Object 构造函数的一个声明，它的 create 方法用于基于某个对象去创建一个新对象，可以看到其第一参数为 object | null 的联合类型。
+  通常，在没有属性或方法的操作情况下，可以使用 object 作为类型。而当有属性访问，或者方法调用，那么在类型不收缩的情况下，ts 会报错。示例：
+  ```typescript
+  let obj: object = {
+    name: 'asd',
+    num: 123
+  }
+  // 有个问题需要注意：当对象被声明 object 类型后，访问或者修改该对象的属性时，会报错
+  obj.a = 'qwe' // Error -> Property 'a' does not exist on type 'object'.
+  // 所以通常情况下， 不要去使用 object 进行类型标注，而应使用 interface 和 type alias 去进行声明，然后标注。
+  ```
+  如下代码, 是 ts 对于 Object 构造函数的一个声明，它的 create 方法用于基于某个对象去创建一个新对象，可以看到其第一参数为 object | null 的联合类型，也就是说明该函数能接受任何引用类型的变量 或者 null。
   ```typescript
   interface ObjectConstructor {
     // ...
@@ -234,7 +240,7 @@ typescript 是 javascript 的超集。
 
 #### 6. 数组 与 元组
   - 1. 数组
-    数组的声明可以为 `Array<T> T[]` 其中 T 表示泛型，可以使用其他类型去替代，表示相应类型的数组
+    数组的声明的语法为 `Array<T> T[]` 其中 T 表示泛型，可以使用其他类型去替代，表示相应类型的数组
     ```typescript
     let numArr: number[] = [1,2,3] // T 被 number 类型替代, 表示 number 型数组。
     let strArr: Array<string> = ['a', 'b', 'c'] // 表示 string 型数组
@@ -244,12 +250,14 @@ typescript 是 javascript 的超集。
     元组可以看作是特殊的数组，一般情况下数组是同一类型值的有序集合，而元组的每个元素都具有相关联的类型，同时数量也是确定的。
     其声明形式为 `[T,D]`
     ```typescript
-    let tupleMap: [string, number] = ['a', 1]
+    let tupleA: [string, number] = ['a', 1]
+
+    // 通过解构赋值，可以正确的推断解构后的每个元素的类型。
+    let [str, num] = tupleA // str -> string ,  num -> number
     ```
-    通过解构赋值，可以正确的推断解构后的每个元素的类型。
 
 #### 7. 字面量类型
-  字面量类型 就是 string、number 和 boolean 类型的实际类型，形式如下：
+  字面量类型 就是 string、number 和 boolean 类型的实际类型，可以这样理解：string、number 和 boolean 就是它们各自类型的一个总的集合，而相应的字面量类型就是它们的子集。形式如下：
   ```typescript
   type Str = 'hello'
   type FalseType = false
@@ -259,19 +267,110 @@ typescript 是 javascript 的超集。
 
 ### 高级类型
 
-#### 1 接口( interface )
-  - 1. 定义及使用
-    interface 声明对象
+#### 1 对象类型( Object Types )
+  首先要明确该类类型和上文中的`object`类型有所不同， `object`类型是所有引用类型（包括函数、数组等）的合集，而该条所述类型就是单纯的对象（键值对）类型。
+  - 1. 使用
+    对象字面量方式的标注, 也可以使用 下文中为 interface 和 type alias 进行类型命名然后再去标注。
     ```typescript
+    let point: {
+      x: number; // 类型后可以用分号、逗号，也可以什么都不加(只要不写在同一行)。
+      y: number
+    } = {
+      x: 1,
+      y: 1
+    } 
     ```
-    声明class 声明函数 继承 实现
+  - 2. 可选属性
+    在属性后加一个 ?，就能让它变成可选属性，意思就是可有可无。
+    ```typescript
+    let point: {
+      x: number;
+      y: number;
+      z?: number // z 属性为可选属性，因此在赋值的时候可以没有。
+    } = {
+      x: 1,
+      y: 1
+    }
+    ```
+  - 3. 只读属性
+    在属性前面加上 readonly，就能让它变成只读属性，这就意味着这个属性的值不能被修改。
+    ```typescript
+    let point: {
+      readonly x: number;
+      y: number;
+    } = {
+      x: 1,
+      y: 1
+    }
+    point.x = 2 // Error -> Cannot assign to 'x' because it is a read-only property.
+    point.y = 3 // OK
+    // 可以看到，修改被 readonly 标注的属性 x 时，ts 报了个错误，因为它是只读属性。
+    ```
+
+#### 2 接口( interface )
+  - 1. 定义及使用
+    interface 就是接口的意思。
+
+    声明对象，和上文中的对象字面量类型相识，但使用 interface 可以给其进行命名，从而可以在多个地方使用。可选属性 和 只读属性也能在 interface 中使用。
+      ```typescript
+      interface User {
+        name: string
+        password: string
+      }
+      let user: User = {
+        name: 'admin',
+        password: '123456'
+      }
+      ```
+    声明函数
+      ```typescript
+      // 普通函数
+      interface Foo {
+        (name: string, type: number) => void
+      }
+
+      const foo: Foo = (name, type) => {
+        console.log(`name is ${name}, type is ${type}`)
+      }
+
+      // 构造函数
+
+      ```
+    扩展 和 实现
   - 2. 字符串签名 和 数字签名
     对象的键可以是字符串也可以是数字，或 symbol 类型。
+    ```typescript
+    interface Info {
+      [k: string]: number // 表示键为string类型，值为number型的对象。
+    }
+    ```
   - 3. 声明合并
+    这是 interface 所具有的特性，它使得扩充 interface 很简便。具体为：只要同名的interface，那么它们的属性就会自动合并。
+    ```typescript
+    interface Point {
+      x: number
+      y: number
+    }
 
-#### 2. 类型别名( type alias )
+    interface Point {
+      z: number
+    }
+
+    let point: Point = { // 如果少写了 z 属性 或 x和y 属性 都会导致报错。
+      x: 1,
+      y: 1,
+      z: 1
+    }
+    ```
+#### 3. 类型别名( type alias )
   - 1. 使用
     类型别名 通过`type`关键字进行声明。顾名思义，它可以作为另一个类型的别名，也就是说，基础类型可以被重新命名。当然这样做没有什么实际意义，它主要是用来声明 元组、联合类型 和 交叉类型的。
+    ```typescript
+    type StringN = string; // 原始值的别名
+    type StrAndNum = string | number; // string 和 number 的联合类型， 具体值的类型为两者中的某一个。
+
+    // 声明对象和interface基本一致。且同个命名空间下，只能存在唯一命名的 type alias。
+    ```
 
 #### 3. interface 与 type alias 的区别
   通常情况下，interface 和 type alias 是可以相互替换的，但有这些细微差别：
@@ -281,7 +380,12 @@ typescript 是 javascript 的超集。
 
 #### 4. 函数类型
   - 1. 函数类型定义
+    上文提到过，可以通过 interface 和 type alias 来声明函数类型，不过通常也可以直接在函数上标注。
+    ```typescript
+    ```
+
   - 2. 参数类型
+
   - 3. this 类型
     在 ts 的普通函数中使用 this 会有一个报错。解决方法为 使用 箭头函数代替，使用 this 参数
     this 参数 是一个特殊的参数，它必须放在函数的第一个参数位置上，在编译成 js 后 this 参数会被去掉，使用时一定要注意 this 的类型声明要符合正确的this类型。
@@ -290,15 +394,16 @@ typescript 是 javascript 的超集。
     函数重载是指函数的多态性: 函数的 参数数量、参数类型 和 返回值 不同，但函数名相同。
     不管是 js 还是 ts 都没有真正的函数重载。因为 js 作为动态语言，天生不支持函数重载。
     在 ts 中函数重载需要声明多个函数，但 函数的实现只有一种，且其内部会对不同的参数 进行不同的处理，从而实现函数重载。
-
-  - 5. 实际使用
-    函数的类型通常在定义函数的时候只需要对参数进行类型声明，就能完成函数类型。当然也可以通过 interface 和 type 去进行函数类型声明。
-  this
+    ```typescript
+    ```
 
 #### 5. class
   - 1. class 是 ES6 中新增的一种语法，用于声明 类，其本质是一个特殊的函数，在 ts 中，则新增了更符合类的 字段声明
     分为 私有 共有 和 保护。同时也加入了 implements 用于实现接口，
+
   - 2. 继承 及 实现
+
+
   - 3. 抽象类
 
 
@@ -419,9 +524,20 @@ typescript 是 javascript 的超集。
 
 #### 2. 声明文件
   - 1. declare 是 ts 中的关键字，用于声明变量、方法等，主要是为了用于提供 js 文件或三方库 的类型声明。
-  在 package.json 中会使用 type 字段去标识当前包的 类型声明文件，从而向使用者提供相应的代码补全、提示等功能。
-  在编译 ts 文件的过程中，也可以通过配置 tsconfig.json 文件 生成相应的 声明文件。
-  通常会在 xxx.d.ts 文件中使用，因为该文件不会被编译器编译成 js 代码。
+    在 package.json 中会使用 type 字段去标识当前包的 类型声明文件，从而向使用者提供相应的代码补全、提示等功能。
+    在编译 ts 文件的过程中，也可以通过配置 tsconfig.json 文件 生成相应的 声明文件。
+    通常会在 xxx.d.ts 文件中使用，因为该文件不会被编译器编译成 js 代码。
+    ```typescript
+    declare global {
+      interface Window {
+        webApp: { // 在全局环境挂载一个webApp属性，从而可以在用的地方有类型检测
+          baseUrl: string
+        }
+      }
+    }
+    
+    const { baseUrl } = window.webApp
+    ```
   
   - 2. 三重斜线指令
   使用三重斜线指令可以将声明文件引进 ts 文件中。
@@ -429,6 +545,8 @@ typescript 是 javascript 的超集。
   /// <reference path="./jquery.d.ts" />
   ```
 #### 3. tsconfig.json 配置
+  ```json
+  ```
 
 ## typescript 探讨
   - 1. ts 本质
