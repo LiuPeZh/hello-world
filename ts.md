@@ -10,77 +10,264 @@ typescript 是 javascript 的超集。
   普通基础类型关键字: boolean number string symbol bigint unknown any void null undefined object。
   这些关键字可以直接作为类型使用，也可以通过组合形成更高级的类型。
   ```typescript
+  let num: number = 10
+  let str: string = 'hello'
+  let flag: boolean = false
+  let uniqueVal: symbol = Symbol('uniqueVal')
+  let bigNum: bigint = 9007199254740991n
+
+  let nullVar: null = null
+  let undefinedVar: undefined = undefined 
+  // null 和 undefined 类型的值就是自身，通常不会像上述代码一样直接进行赋值， 而是通过复合成高级类型，再进行使用。
+
+  let obj: object = {
+    name: 'asd',
+    num: 123
+  }
+  // 有个问题需要注意：当对象被声明 object 类型后，访问或者修改该对象的属性时，会报错
+  obj.a = 'qwe' // Error -> Property 'a' does not exist on type 'object'.
+  // 所以通常情况下， 不要去使用 object 进行类型标注，而应使用 interface 和 type alias 去进行声明，然后标注。
+
   ```
-  boolean 、number 、string 、symbol 、bigint 、null 和 undefined 基本和 js 中的普通类型一一对应。除了 null 以外，其他类型就相当于 js 中使用 typeof 运算符的操作结果。
+
+  boolean 、number 、string 、symbol 、bigint 、null 和 undefined 基本和 js 中的普通类型一一对应。 其中除了 null 以外，其他类型就相当于 js 中使用 typeof 运算符的操作结果。
   可以发现除了 null 和 undefined 其他类型都是原生构造函数的首字母小写形式，当然这些原生构造函数也可以被用作类型，但在 ts 很少去这样使用。
+
+  void 表示空类型，一般用于函数没有返回值的时候。它可以被 any、undefined、null 和 never 类型的值，进行赋值。
 
 #### 2. unknown 和 any 
   - 1. unknow 
   表示未知的类型，用于不确定的变量类型。任何类型都是它的 `subtype`， 也就是说任何类型变量都可以分配给它，但它只能分配给自身或 any 类型的变量。
+  ```typescript
+  let unkonwnVal: unknown
+  unkonwnVal = 1
+  unkonwnVal = 'a'
+  unkonwnVal = false
+  unkonwnVal = null
+  unkonwnVal = false
+  unkonwnVal = {
+      name: 'unknown value'
+  }
+  // ...
+  ```
+
   实际使用中通常会先对`unknow`类型变量进行`类型收缩`，然后再进行具体的操作。如下代码：
   ```typescript
+  // function foo(val: unknown): string | number
+  function foo(val: unknown) {
+    if (typeof val === 'function') {
+      val() // 这块 val 变量将会被推断为 函数类型 (parameter) val: Function
+    } else if (typeof val === 'number' || typeof val === 'string') {
+      return val // 而在这块， val 将会被推断成联合类型 string | number， (parameter) val: string | number
+    }
+    throw Error('参数类型应该为：number、string和function')
+  }
   ```
   
   - 2. any 
   表示任何类型，它可以赋给任何类型变量，也可以接受任何类型变量。
   如果一个变量设置为 any 类型， 那么就可以进行任何操作，就像是在写 js 一样，但这样就会丢失类型检查，而且更不好确保程序运行不出错。就比如常见的 Cannot read property 'a' of null/undefined 错误。
+  ```typescript
+  // 函数内对参数 val 的任何操作，都不会引发 ts 报错。
+  function foo(val: any) {
+    val() // 可以直接当函数调用，但不保证运行时不出错
+    val = 1
+    if (typeof val === 'function') {
+      val() // 这里还是会被推断为 any 类型， 类型收缩失效。
+    }
+    throw Error('参数类型应该为：number、string和function')
+  }
+  ```
 
   - 3. unknown 和 any 的区别
   unknown 和 any 的最大的区别就是 unknown 可以确保类型检查，而 any 则相当于完全放弃了类型检查。
-  所以通常情况下应该使用 unknown 而不是 any。当然个人感觉在通常业务开发中也没有必要去禁用 any，一方面，使用 any 可以作为 ts 初学者过渡的阶段，另一方面有时候可能会花费更多的时间在 类型 定义上，而需求变动时，有得重写，这时候 any 就很具有作用。
-  我在使用在通常是在接口返回值上去使用 any 。
+  所以通常情况下应该使用 unknown 而不是 any。当然个人感觉在通常业务开发中也没有必要去禁用 any，一方面，使用 any 可以作为 ts 初学者过渡的阶段，另一方面有时候可能会花费更多的时间在 类型 定义上，而需求变动时，又得重写，这时候 any 就很具有作用。
 
 #### 3. Enum 枚举类型
-  enum 类型 可以说是对 js 类型的一个补充。表示一系列的集合。
-  
-  Enum 既可以作为类型也可以作为变量进行使用。编译后会转为相应的js代码。
+  enum 类型 表示一系列数据的集合, 是对 js 类型的一个补充, 因此它既可以作为类型也可以作为变量进行使用。
+  基本语法如下: 
   ```typescript
   enum Book {
-    JS = 'a',
-    TS = 'b'
+    Maths,
+    Chinese,
+    English
   }
-  // 编译后的 js 代码
-  var Book;
-  (function (Book) {
-      Book["JS"] = "a";
-      Book["TS"] = "b";
-  })(Book || (Book = {}));
+  let Maths = Book.Maths // Maths -> 0 
+  let Chinese = Book.Chinese // Chinese -> 1
   ```
-  定义 enum 类型 需注意这几点：1. 默认情况下， enum 类型中的成员是从 0 开始的。2. 给某个成员赋值一个数字时，这个成员下面的成员就会接着这个数。3. 使用字符串做值的时候，所有成员就都要进行赋值操作。或者最下面有赋值的为数字。
+  使用 enum 类型 需注意这几点:
+  - 1. 默认情况下， enum 类型中的成员是从 0 开始的。
+  - 2. 给某个成员赋值一个数字时，这个成员下面的成员就会接着这个数，而上面则和默认情况一致。注意如果这个成员的值被设置为已有的值，那么就会有重复的， 这在 ts 中不会报错。
+    ```typescript
+    enum Book {
+      Maths,
+      Chinese = 3,
+      English
+    }
+    let Maths = Book.Maths // Maths -> 0 
+    let Chinese = Book.Chinese // Chinese -> 3
+    let Chinese = Book.English // Chinese -> 4
+    ```
+  - 3. 使用字符串做值的时候，所有成员就都要进行赋值操作。或者最下面有赋值的为数字。
+    ```typescript
+    enum Book {
+      Maths = 'Maths',
+      Chinese = 'Chinese',
+      English = 3,
+      History
+    }
+    let Maths = Book.Maths // Maths -> 'Maths'
+    let Chinese = Book.Chinese // Chinese -> 'Chinese'
+    let English = Book.English // English -> 3
+    let History = Book.History // History -> 4
+    ```
+  - 4. 枚举类型的枚举项是只读属性，因此不能被修改。
+  
+  - 5. enum 类型能作为变量使用，因此编译后不会像其他类型那样被去掉，而是会转为相应的js代码，因为涉及到了运行时。
+    ```typescript
+    enum Book {
+      JS = 'a',
+      TS = 'b'
+    }
+    // 编译后的 js 代码
+    var Book;
+    (function (Book) {
+        Book["JS"] = "a";
+        Book["TS"] = "b";
+    })(Book || (Book = {}));
+    ```
+  - 6. 通常大型系统中，会使用二进制数字做标志，如vue源码
+    ```typescript
+    // vue-next/packages/shared/src/patchFlag.ts
+    export const enum PatchFlags {
+      TEXT = 1,
+      CLASS = 1 << 1,
+      STYLE = 1 << 2,
+      PROPS = 1 << 3,
+      FULL_PROPS = 1 << 4,
+      HYDRATE_EVENTS = 1 << 5,
+      STABLE_FRAGMENT = 1 << 6,
+      KEYED_FRAGMENT = 1 << 7,
+      UNKEYED_FRAGMENT = 1 << 8,
+      NEED_PATCH = 1 << 9,
+      DYNAMIC_SLOTS = 1 << 10,
+      HOISTED = -1,
+      BAIL = -2
+    }
+    ```
 
-  我在实际使用中是作为 状态 去使用。
+    这样做的一个好处是，可以通过位运算符去进行相关判断或操作。
+    ```typescript
+    // vue-next/packages/runtime-core/src/renderer.ts 904 line
+    if (patchFlag & PatchFlags.FULL_PROPS) {
+        // ...
+      } else {
+        if (patchFlag & PatchFlags.CLASS) {
+          // ...
+        }
+        if (patchFlag & PatchFlags.STYLE) {
+          // ...
+        }
+        if (patchFlag & PatchFlags.PROPS) {
+          // ...
+        }
+      }
+    ```
+  我是这样去使用的：
+  ```typescript
+  export enum TableState {
+    Init = -1,     // 初始
+    Saved = 0,     // 保存后 （待提交状态）
+    Committed = 1, // 提交后 （待审核状态）
+    Verified = 2   // 审核后 （审核通过后）
+  }
+
+  class BtnComp exnteds Vue {
+    public tableState: TableState = TableState.Saved
+    public originBtnList = [
+      {
+        label: '保存',
+        hasStatus: [TableState.Init, TableState.Saved],
+        event: () => {}
+      },
+      {
+        label: '提交',
+        hasStatus: [TableState.Saved],
+        event: () => {}
+      },
+      {
+        label: '回退',
+        hasStatus: [TableState.Committed],
+        event: () => {}
+      },
+      {
+        label: '审核',
+        hasStatus: [TableState.Committed],
+        event: () => {}
+      },
+    ]
+    public get btnList() {
+      return this.originBtnList.filter((btn) => btn.hasStatus.includes(this.tableState))
+    }
+  }
+
+  ```
 
 #### 4. never
   never 类型 表示不存在的类型。
   通常是一个从来不会有返回值的函数（如：如果函数内含有 while(true) {}）
   或者一个总是会抛出错误的函数（如：function foo() { throw new Error('Not Implemented') }）
-  在工具类型中很常见。
-
+  所返回的类型。
 
 #### 5. object
   object 表示引用类型，它是所以引用类型的基类，也就是说其他的引用类型变量可以赋值给 object 类型变量，比如 数组类型 函数类型 等都可以进行赋值。
   通常，在没有属性或方法的操作情况下，可以使用 object 作为类型。而当有属性访问，或者方法调用，那么在类型不收缩的情况下，ts 会报错。
+  如下代码, 是 ts 对于 Object 构造函数的一个声明，它的 create 方法用于基于某个对象去创建一个新对象，可以看到其第一参数为 object | null 的联合类型。
+  ```typescript
+  interface ObjectConstructor {
+    // ...
+    create(o: object | null): any;
+    create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+    // ...
+  }
+  ```
 
-#### 6. 数组与元组关键字: Array<T> T[] [T,D]
-  数组 与 js 中的数组基本一致。
-  而元组可以看作是特殊的数组，它的元素是确定的。
+#### 6. 数组 与 元组
+  - 1. 数组
+    数组的声明可以为 `Array<T> T[]` 其中 T 表示泛型，可以使用其他类型去替代，表示相应类型的数组
+    ```typescript
+    let numArr: number[] = [1,2,3] // T 被 number 类型替代, 表示 number 型数组。
+    let strArr: Array<string> = ['a', 'b', 'c'] // 表示 string 型数组
+    ```
 
+  - 2. 元组
+    元组可以看作是特殊的数组，一般情况下数组是同一类型值的有序集合，而元组的每个元素都具有相关联的类型，同时数量也是确定的。
+    其声明形式为 `[T,D]`
+    ```typescript
+    let tupleMap: [string, number] = ['a', 1]
+    ```
+    通过解构赋值，可以正确的推断解构后的每个元素的类型。
 
 #### 7. 字面量类型
   字面量类型 就是 string、number 和 boolean 类型的实际类型，形式如下：
   ```typescript
   type Str = 'hello'
+  type FalseType = false
+  type Zero = 0
   ```
-
-  通常 使用字面量联合类型可以替代 enum 使用。
+  字面量类型通常也需要复合成高级类型去使用。
 
 ### 高级类型
 
 #### 1 接口( interface )
   - 1. 定义及使用
-    interface 声明对象 声明class 声明函数 继承 实现 声明合并
-  - 2. 字符串签名 和 索引签名
+    interface 声明对象
+    ```typescript
+    ```
+    声明class 声明函数 继承 实现
+  - 2. 字符串签名 和 数字签名
     对象的键可以是字符串也可以是数字，或 symbol 类型。
+  - 3. 声明合并
 
 #### 2. 类型别名( type alias )
   - 1. 使用
@@ -92,21 +279,7 @@ typescript 是 javascript 的超集。
   - 2. interface 存在声明合并，而 type alias 不能。
   - 3. interface 只能用于声明对象（包含函数和类）的结构，而不能重新命名基础类型。type alias 两个都可以做到。
 
-#### 3. 联合类型( union type )
-  - 1. 定义 
-    一个联合类型是由两个或以上的类型组合而成的，它的值只能是这些组合类型中的某一个。
-    定义方式为：type A = typeA | typeB
-
-    特殊：与 never 进行联合的类型是该类型本身，与 never 交叉的类型，其结果是 never。 
-
-  - 2. 可辨识联合类型。
-
-#### 4. 交叉类型( interestion type )
-  - 1. 定义
-    交叉类型也是有两个或以上的类型组合而成，与联合类型不同的是，它的值必须是有这些组合类型的所有属性。
-    定义方式为：type B = typeA & typeB
-
-#### 5. 函数类型
+#### 4. 函数类型
   - 1. 函数类型定义
   - 2. 参数类型
   - 3. this 类型
@@ -122,20 +295,36 @@ typescript 是 javascript 的超集。
     函数的类型通常在定义函数的时候只需要对参数进行类型声明，就能完成函数类型。当然也可以通过 interface 和 type 去进行函数类型声明。
   this
 
-#### 6. class
+#### 5. class
   - 1. class 是 ES6 中新增的一种语法，用于声明 类，其本质是一个特殊的函数，在 ts 中，则新增了更符合类的 字段声明
     分为 私有 共有 和 保护。同时也加入了 implements 用于实现接口，
   - 2. 继承 及 实现
   - 3. 抽象类
 
-#### 7. 泛型
+
+#### 6. 联合类型( union type )
+  - 1. 定义 
+    一个联合类型是由两个或以上的类型组合而成的，它的值只能是这些组合类型中的某一个。
+    定义方式为：type A = typeA | typeB
+
+    特殊：与 never 进行联合的类型是该类型本身，与 never 交叉的类型，其结果是 never。 
+
+  - 2. 可辨识联合类型。
+
+#### 7. 交叉类型( interestion type )
+  - 1. 定义
+    交叉类型也是有两个或以上的类型组合而成，与联合类型不同的是，它的值必须是有这些组合类型的所有属性。
+    定义方式为：type B = typeA & typeB
+
+
+#### 8. 泛型
   - 1. 泛型是指在定义函数、接口或类的时候，不预先指定具体的类型，使用时再去指定类型的一种特性。
   - 2. 泛型约束
     通过 extend 关键字可以对泛型进行约束，如下例子
     ```typescript
     ```
 
-#### 8. 模板字符串类型
+#### 9. 模板字符串类型
   1. 基础语法
   它的语法和 es 里的字符串模板很相似。
   目前存在 bug。 如果模板字符串类型中存在 number 或 string 类型，那么就无法正确的检测类型。
