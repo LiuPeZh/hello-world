@@ -336,14 +336,27 @@ typescript 是 javascript 的超集。
       // 构造函数
 
       ```
-    扩展 和 实现
+    扩展
+      类似于 class 的继承, 扩展 interface 也是通过 extends 关键字来实现的。
+      ```typescript
+      interface SuperUser extends User {
+        type: 'vip' | 'svip'
+      }
+      let superUser: SuperUser = {
+        name: 'admin',
+        password: '123456',
+        type: 'vip'
+      }
+      ```
+
   - 2. 字符串签名 和 数字签名
-    对象的键可以是字符串也可以是数字，或 symbol 类型。
+    对象的键可以是字符串也可以是数字，或 symbol 类型, 所以可以通过动态key 的形式，声明对象的类型。如下：
     ```typescript
     interface Info {
       [k: string]: number // 表示键为string类型，值为number型的对象。
     }
     ```
+
   - 3. 声明合并
     这是 interface 所具有的特性，它使得扩充 interface 很简便。具体为：只要同名的interface，那么它们的属性就会自动合并。
     ```typescript
@@ -370,6 +383,16 @@ typescript 是 javascript 的超集。
     type StrAndNum = string | number; // string 和 number 的联合类型， 具体值的类型为两者中的某一个。
 
     // 声明对象和interface基本一致。且同个命名空间下，只能存在唯一命名的 type alias。
+    // 上文中 使用 interface 声明的 User 类型 可以用 type alias 这样声明:
+    type User = {
+      name: string
+      password: string
+    };
+    // 使用上与interface一致。
+    let user: User = {
+      name: 'admin',
+      password: '123456'
+    }
     ```
 
 #### 3. interface 与 type alias 的区别
@@ -400,11 +423,15 @@ typescript 是 javascript 的超集。
 #### 5. class
   - 1. class 是 ES6 中新增的一种语法，用于声明 类，其本质是一个特殊的函数，在 ts 中，则新增了更符合类的 字段声明
     分为 私有 共有 和 保护。同时也加入了 implements 用于实现接口，
+    ```typescript
+    ```
 
   - 2. 继承 及 实现
+    继承 和 js 中的继承一致，而实现则是通过 implements 字段， 右侧为具体的 interface 声明的类型命名。
 
 
   - 3. 抽象类
+    抽象类是一种特殊的类，通过 abstract 关键字，可以让普通类变为抽象类。
 
 
 #### 6. 联合类型( union type )
@@ -412,7 +439,7 @@ typescript 是 javascript 的超集。
     一个联合类型是由两个或以上的类型组合而成的，它的值只能是这些组合类型中的某一个。
     定义方式为：type A = typeA | typeB
 
-    特殊：与 never 进行联合的类型是该类型本身，与 never 交叉的类型，其结果是 never。 
+    特殊：与 never 进行联合的类型是该类型本身，
 
   - 2. 可辨识联合类型。
 
@@ -420,7 +447,11 @@ typescript 是 javascript 的超集。
   - 1. 定义
     交叉类型也是有两个或以上的类型组合而成，与联合类型不同的是，它的值必须是有这些组合类型的所有属性。
     定义方式为：type B = typeA & typeB
+    从概念上可以这样理解交叉类型，比作交集，
+    从实际上可以这样理解：交叉类型的结果就是其用于交叉类型中的各个类型的所有属性。
 
+    特殊：与 never 交叉的类型，其结果是 never。 
+    两个不相交的类型，交叉后也是 never。
 
 #### 8. 泛型
   - 1. 泛型是指在定义函数、接口或类的时候，不预先指定具体的类型，使用时再去指定类型的一种特性。
@@ -437,21 +468,51 @@ typescript 是 javascript 的超集。
 ### 其他
 
 #### 1. 类型推断
-  通常我们可以不必去写类型注解，因为 ts 可以自动推断出变量的类型。
-  const 声明的 非引用类型 变量。
-  使用 as const 断言的类型。
-  as const 和 用于声明常量的 const 有所不同，const 声明的常量本身不能修改，但它的属性可以被修改，而 as const 断言的变量属性也不能被修改。
+  通常我们可以不必去写类型注解，因为 ts 可以自动推断出变量的类型，要不然所有的变量都写类型的话，那也就失去了 js 的简洁性，这也是 ts 作为 js超集，不仅仅考虑了静态类型检测，而且还估计到了 js 的简洁性。
+
+  let 和 const 声明变量的类型推断。注意 const 声明的非引用类型变量被推断为实际的字面量类型。
+  ```typescript
+  let str = 'hello' // str -> string
+  const str2 = 'hello' // str2 -> 'hello'
+
+  /**
+    * obj ->  {
+    *     name: string
+    *  }
+    */
+  let obj = {  
+    name: 'asd'
+  }
+  // 和 let 一致
+  const obj2 = {  
+    name: 'asd'
+  }
+
+  // 但是在其后加上 as const 断言， 那么就会推断为这样.
+  /**
+    * obj3 ->  {
+    *     name: 'asd'
+    *  }
+    */
+  const obj3 = {  
+    name: 'asd'
+  } as const // as const 和 用于声明常量的 const 有所不同，const 声明的常量本身不能修改，但它的属性可以被修改，而 as const 断言的变量属性也不能被修改。
+  ```
 
 #### 2. 类型断言
-  ! 表示非空断言，用于标识变量不可能为 null 或 undefined
+  - 1. ! 表示非空断言，用于标识变量不可能为 null 或 undefined
   在 vue2 开发中 可以用于声明 props 中。
   ```typescript
   @Prop()
   public data!: string
   ```
   也可以用于获取dom 等确定值不为 null 或 undefined 的情况。
-    class
-    类型断言 as语法 和 尖括号语法 
+
+  - 2. 类型断言 as语法 和 尖括号语法
+  ```typescript
+  let str = '123'
+  let number: number = str as string
+  ``` 
 
 #### 3. 类型收缩
   类型收缩通常用于对联合类型的收缩。
@@ -459,11 +520,15 @@ typescript 是 javascript 的超集。
 ## typescript 进阶
 
 ### 类型编程
+  经过这几年的发展，ts 的类型系统已经非常成熟，而且还具有图灵完备：可以当作一门编程语言使用。比如这位大佬用它实现了4位加法器。 不过碍于本人自己水平，本节只会讲解一些最基础的类型编程。
 #### 1. 类型守卫
   - 1. 定义作用
   - 2. in 
+    使用 in 操作符做类型守卫，本质上就是借助了 js 中 in 操作符的用法：判断一个属性是否在一个对象中。
   - 3. typeof 
+    本质上也是 通过 typeof 判断类型。
   - 4. instanceof
+    用于判断 一个对象是否是一个类的实例。
 
 #### 2. 类型映射
   通过一个类型创建另一个类型。ts 中提供了这些操作符用于创建新类型: `keyof type`、`typeof type` 以及 `索引访问类型( Indexed Access Types )`
@@ -486,6 +551,7 @@ typescript 是 javascript 的超集。
   - 2. Required<Type> 
     用于将对象的各个属性转化成必填属性。
   - 3. Readonly<Type> 
+    用于将对象的各个属性转化成只读属性。
   - 4. Record<Type> 
   - 5. Pick<Type> 
   - 6. Omit<Type> 
@@ -519,8 +585,38 @@ typescript 是 javascript 的超集。
   ```
 
   也可以通过自定义装饰器，创建自己的装饰器。如下的 loading 装饰器 和 log 装饰器。
+  ```typescript
+  ```
 
-  - 2. 为什么不能在函数上使用装饰器： 因为存在函数提升。
+  - 2. 为什么不能在函数上使用装饰器： 因为存在函数提升。类是不会提升的，所以就没有这方面的问题。
+  可以看以下代码:
+  ```typescript
+  var counter = 0;
+
+  var add = function () {
+    counter++
+  }
+
+  @add
+  function foo() {
+  }
+  ```
+
+  上述代码会被编译为以下代码
+  ```typescript
+  var counter
+  var add
+
+  @add
+  function foo() {
+  }
+
+  counter = 0
+
+  add = function () {
+    counter++
+  }
+  ```
 
 #### 2. 声明文件
   - 1. declare 是 ts 中的关键字，用于声明变量、方法等，主要是为了用于提供 js 文件或三方库 的类型声明。
@@ -545,8 +641,54 @@ typescript 是 javascript 的超集。
   /// <reference path="./jquery.d.ts" />
   ```
 #### 3. tsconfig.json 配置
+  类似于前端其他工具，比如 webpack 、eslint 、babel 等，虽然可以通过 cli 程序指定具体的文件进行相关操作。但通常工程化的项目中，会采用配置文件来代替手工 cli 输入。ts 的相关配置文件为 tsconfig.json 下面简单说说常用的属性：
   ```json
+  {
+    "compilerOptions": { // 这个下面是有关编译选项的配置。
+      "target": "esnext", // 目标语言版本 -> 就是编译后生成的 js 版本。
+      "module": "esnext", // 目标代码的模块标准：esnext 为ES模块。
+      "strict": true,
+      "jsx": "preserve",
+      "importHelpers": true,
+      "moduleResolution": "node",
+      "experimentalDecorators": true, // 开启装饰器语法，因为装饰器在ES标准中并没有完善，只是个实验特性，所以需要开启才能使用。
+      "esModuleInterop": true,
+      "allowSyntheticDefaultImports": true,
+      "sourceMap": true,
+      "baseUrl": ".",
+      "types": [
+        "webpack-env",
+        "mocha",
+        "chai"
+      ],
+      "paths": { // 路径映射。 比如在 ts + vue 的项目中，如果没有这项配置， 那么通过 @/ 这种方式引入的模块编译时会报错。
+        "@/*": [
+          "src/*"
+        ]
+      },
+      "lib": [ // 该配置与 taget 配置相关， 如果 targer 设置为 ES5 那么就要在这里引入相关文件。注意这里引入的只是.d.ts 类型声明文件。
+        "esnext",
+        "dom", // 比如, 去掉该项， 将会使 dom 相关的 api 失去类型，从而导致编译报错。
+        "dom.iterable",
+        "scripthost"
+      ]
+    },
+    "include": [ // 要编译的文件
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "src/**/*.vue",
+      "tests/**/*.ts",
+      "tests/**/*.tsx"
+    ],
+    "exclude": [ // 不用编译的文件
+      "node_modules",
+      "src/components/video-preview/video-preview.vue",
+      "src/components/video-preview/video/*.js"
+    ]
+  }
+
   ```
+  注意：tsc 和 babel 类似，都是只转化语法 （也就是像箭头函数，let，const 等），而不会转化新 api （比如：Promise Map Array.find 等）。要想在 低版本ES 中使用这些新 api 就需要引入 core-js 等库。
 
 ## typescript 探讨
   - 1. ts 本质
