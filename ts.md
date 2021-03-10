@@ -233,7 +233,6 @@ typescript 是 javascript 的超集。
   interface ObjectConstructor {
     // ...
     create(o: object | null): any;
-    create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
     // ...
   }
   ```
@@ -376,30 +375,29 @@ typescript 是 javascript 的超集。
     }
     ```
 #### 3. 类型别名( type alias )
-  - 1. 使用
-    类型别名 通过`type`关键字进行声明。顾名思义，它可以作为另一个类型的别名，也就是说，基础类型可以被重新命名。当然这样做没有什么实际意义，它主要是用来声明 元组、联合类型 和 交叉类型的。
-    ```typescript
-    type StringN = string; // 原始值的别名
-    type StrAndNum = string | number; // string 和 number 的联合类型， 具体值的类型为两者中的某一个。
-    type KeyValue = [string, number];
+  类型别名 通过`type`关键字进行声明。顾名思义，它可以作为另一个类型的别名，也就是说，基础类型可以被重新命名。当然这样做没有什么实际意义，它主要是用来声明 元组、联合类型 和 交叉类型的。
+  ```typescript
+  type StringN = string; // 原始值的别名
+  type StrAndNum = string | number; // string 和 number 的联合类型， 具体值的类型为两者中的某一个。
+  type KeyValue = [string, number];
 
-    let keyValue: KeyValue = ['num', 123]
-    // 声明对象和interface基本一致。且同个命名空间下，只能存在唯一命名的 type alias。
-    // 上文中 使用 interface 声明的 User 类型 可以用 type alias 这样声明:
-    type User = {
-      name: string
-      password: string
-    };
-    // 使用上与interface一致。
-    let user: User = {
-      name: 'admin',
-      password: '123456'
-    }
+  let keyValue: KeyValue = ['num', 123]
+  // 声明对象和interface基本一致。且同个命名空间下，只能存在唯一命名的 type alias。
+  // 上文中 使用 interface 声明的 User 类型 可以用 type alias 这样声明:
+  type User = {
+    name: string
+    password: string
+  };
+  // 使用上与interface一致。
+  let user: User = {
+    name: 'admin',
+    password: '123456'
+  }
 
-    type SuperUser = {
-      type: 'vip' | 'svip'
-    } & User
-    ```
+  type SuperUser = {
+    type: 'vip' | 'svip'
+  } & User
+  ```
 
 #### 3. interface 与 type alias 的区别
   通常情况下，interface 和 type alias 是可以相互替换的，但有这些细微差别：
@@ -408,65 +406,204 @@ typescript 是 javascript 的超集。
   - 3. interface 只能用于声明对象（包含函数和类）的结构，而不能重新命名基础类型。type alias 两个都可以做到。
 
 #### 4. 函数类型
-  - 1. 函数类型定义
+  - 1. 函数类型
+    通过使用函数类型，可以在很大程度上帮助我们解决一些常见bug，同时函数的使用也会变得很简单：结合编辑器的提示和类型检测，就感觉像看文档一样。
     上文提到过，可以通过 interface 和 type alias 来声明函数类型，不过通常也可以直接在函数上标注。
     ```typescript
+    type Foo = {
+      (a: number): number;
+    };
+
+    type FooShort = (a: number) => number;
+
+    function greet(name: string) {
+      console.log("Hello, " + name.toUpperCase() + "!!");
+    }
+    greet(42); // Error -> Argument of type 'number' is not assignable to parameter of type 'string'.
     ```
 
-  - 2. 参数类型
-
-  - 3. this 类型
-    在 ts 的普通函数中使用 this 会有一个报错。解决方法为 使用 箭头函数代替，使用 this 参数
+  - 2. this 类型
+    在 ts 的普通函数中使用 this 会有一个类型报错。解决方法为 使用 箭头函数代替，另一个是使用 this 参数。
     this 参数 是一个特殊的参数，它必须放在函数的第一个参数位置上，在编译成 js 后 this 参数会被去掉，使用时一定要注意 this 的类型声明要符合正确的this类型。
     ```typescript
+    interface Card {
+      suit: string;
+      card: number;
+    }
 
+    interface Deck {
+      suits: string[];
+      cards: number[];
+      createCardPicker(this: Deck): () => Card;
+    }
+
+    let deck: Deck = {
+      suits: ["hearts", "spades", "clubs", "diamonds"],
+      cards: Array(52),
+      // NOTE: The function now explicitly specifies that its callee must be of type Deck
+      createCardPicker: function (this: Deck) {
+        return () => {
+          let pickedCard = Math.floor(Math.random() * 52);
+          let pickedSuit = Math.floor(pickedCard / 13);
+
+          return { suit: this.suits[pickedSuit], card: pickedCard % 13 };
+        };
+      },
+    };
     ```
 
-  - 4. 函数重载
+  - 3. 函数重载
     函数重载是指函数的多态性: 函数的 参数数量、参数类型 和 返回值 不同，但函数名相同。
     不管是 js 还是 ts 都没有真正的函数重载。因为 js 作为动态语言，天生不支持函数重载。
     在 ts 中函数重载需要声明多个函数，但 函数的实现只有一种，且其内部会对不同的参数 进行不同的处理，从而实现函数重载。
     ```typescript
+    interface ObjectConstructor {
+      // ...
+      create(o: object | null): any;
+      create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+      // ...
+    }
+
     ```
 
 #### 5. class
   - 1. class 是 ES6 中新增的一种语法，用于声明 类，其本质是一个特殊的函数，在 ts 中，则新增了更符合类的 字段声明
     分为 私有 共有 和 保护。同时也加入了 implements 用于实现接口，
     ```typescript
+    class Point {
+      x: number;
+      y: number;
+    }
+    const pt = new Point();
+    pt.x = 0;
+    pt.y = 0;
     ```
 
   - 2. 继承 及 实现
     继承 和 js 中的继承一致，而实现则是通过 implements 字段， 右侧为具体的 interface 声明的类型命名。
+    ```typescript
+    interface Pingable {
+      ping(): void;
+    }
 
+    class Sonar implements Pingable {
+      ping() {
+        console.log("ping!");
+      }
+    }
+
+    class Ball implements Pingable {
+    // Class 'Ball' incorrectly implements interface 'Pingable'.
+    //  Property 'ping' is missing in type 'Ball' but required in type 'Pingable'.
+      pong() {
+        console.log("pong!");
+      }
+    }
+    ```
 
   - 3. 抽象类
-    抽象类是一种特殊的类，通过 abstract 关键字，可以让普通类变为抽象类。
+    抽象类是一种特殊的类，通过 abstract 关键字，可以让普通类变为抽象类。与普通类最大的不同就是，抽象类不能被实例化。
+    ```typescript
+    abstract class Base {
+      abstract getName(): string;
+
+      printName() {
+        console.log("Hello, " + this.getName());
+      }
+    }
+
+    const b = new Base(); // Cannot create an instance of an abstract class.
+
+    class Derived extends Base {
+      getName() {
+        return "world";
+      }
+    }
+
+    const d = new Derived();
+    d.printName();
+    ```
 
 
 #### 6. 联合类型( union type )
   - 1. 定义 
     一个联合类型是由两个或以上的类型组合而成的，它的值只能是这些组合类型中的某一个。
     定义方式为：type A = typeA | typeB
+    ```typescript
+    type NumberOrString = number | string // 我们定义了一个可以是number 也可以是 string 的类型。
+    ```
 
     特殊：与 never 进行联合的类型是该类型本身，
 
   - 2. 可辨识联合类型。
+    可辨识联合类型，就是组成联合类型的每个类型中都有相同的一个字段，用于标识该类型 与其他类型的不同。
+    ```typescript
+    type NetworkLoadingState = {
+      state: "loading";
+    };
+    type NetworkFailedState = {
+      state: "failed";
+      code: number;
+    };
+    type NetworkSuccessState = {
+      state: "success";
+      response: {
+        title: string;
+        duration: number;
+        summary: string;
+      };
+    };
+    // Create a type which represents only one of the above types
+    // but you aren't sure which it is yet.
+    type NetworkState =
+      | NetworkLoadingState
+      | NetworkFailedState
+      | NetworkSuccessState;
+
+    function logger(state: NetworkState): string {
+      switch (state.state) {
+        case "loading":
+          return "Downloading...";
+        case "failed":
+          // The type must be NetworkFailedState here,
+          // so accessing the `code` field is safe
+          return `Error ${state.code} downloading`;
+        case "success":
+          return `Downloaded ${state.response.title} - ${state.response.summary}`;
+      }
+
+    ```
 
 #### 7. 交叉类型( interestion type )
   - 1. 定义
     交叉类型也是有两个或以上的类型组合而成，与联合类型不同的是，它的值必须是有这些组合类型的所有属性。
     定义方式为：type B = typeA & typeB
-    从概念上可以这样理解交叉类型，比作交集，
+    从概念上可以这样理解交叉类型，比作交集。
     从实际上可以这样理解：交叉类型的结果就是其用于交叉类型中的各个类型的所有属性。
 
     特殊：与 never 交叉的类型，其结果是 never。 
-    两个不相交的类型，交叉后也是 never。
+    两个不相交的类型，交叉后也是 never。比如 number & string ，因为两者并不相交，所以其类型为 never。
 
 #### 8. 泛型
   - 1. 泛型是指在定义函数、接口或类的时候，不预先指定具体的类型，使用时再去指定类型的一种特性。
+  ```typescript
+  function identity<Type>(arg: Type): Type {
+    return arg;
+  }
+  ```
+
   - 2. 泛型约束
+    当我们想使用泛型，但并不想使用所有类型的时候，就可以使用泛型约束，从而让泛型在一定的类型范围内。
     通过 extend 关键字可以对泛型进行约束，如下例子
     ```typescript
+    interface Lengthwise {
+      length: number;
+    }
+
+    function loggingIdentity<Type extends Lengthwise>(arg: Type): Type {
+      console.log(arg.length); // Now we know it has a .length property, so no more error
+      return arg;
+    }
     ```
 
 #### 9. 模板字符串类型
@@ -508,27 +645,175 @@ typescript 是 javascript 的超集。
   } as const // as const 和 用于声明常量的 const 有所不同，const 声明的常量本身不能修改，但它的属性可以被修改，而 as const 断言的变量属性也不能被修改。
   ```
 
-#### 2. 类型断言
-  - 1. ! 表示非空断言，用于标识变量不可能为 null 或 undefined
+#### 2. 类型收缩
+  类型收缩就是从宽泛的类型换成窄类型的过程。通常用于处理联合类型和unknow类型的场景。
+  ```typescript
+  const tableBody = document.querySelector('.el-table__body') // tableBody -> Element | null 
+  // 直接访问 tableBody的属性或方法，会导致类型报错，因为这里是 Element 和 null 的联合类型。
+  if (tableBody) { // 通过这样的判断，就会使得，该if块下的tableBody都会变成 Element 类型。
+    // dom元素相关的操作
+  }
+  const options = [
+    { label: '一', value: 1 },
+    { label: '二', value: 2 },
+    { label: '三', value: 3 },
+  ]
+  const option = options.find((item) => item.value === 1)
+  /**
+    *  option ->  {
+    *               label: string;
+    *               value: number;
+    *             } | undefined
+    */
+  // 数组的 find 方法也是会返回 null 和 数组元素的类型 的联合类型， 因此在使用option 时，也需要进行类型收缩
+  if (option) {
+    console.log(option.label)
+  }
+  ```
+
+
+#### 3. 类型断言
+  - 1. ! 表示非空断言，用于标识变量不可能为 null 或 undefined。通常可以应用于声明变量，然后在后续过程中操作。
   在 vue2 开发中 可以用于声明 props 中。
   ```typescript
   @Prop()
   public data!: string
   ```
-  也可以用于获取dom 等确定值不为 null 或 undefined 的情况。
+  也可以用于获取dom 等确定值不为 null 或 undefined 的情况。比如上文类型收缩中的例子：
+  ```typescript
+  // 如果确定这个元素是存在的，那么只需要在该方法后加上!操作符，就能将联合类型中的 null 类型过滤掉。
+  const tableBody = document.querySelector('.el-table__body')! // tableBody -> Element
+  // dom元素相关的操作 // 因为 tableBody 位 Element 类型，因此进行相关dom操作，不会引发类型错误。
+  }
+  ```
 
   - 2. 类型断言 as语法 和 尖括号语法
   ```typescript
   let str = '123'
-  let number: number = str as string
+  let num: number = str as string
+
+  // 复杂一点的例子
+  interface TableData {
+    [k: string]: number | string
+  }
+
+  const heads = ['name', 'lastName', 'date']
+  const datas = [
+    ['asd', 'qwe', '2020-12-31'],
+    ['zxc', 'cvb', '2021-01-01'],
+  ]
+  const tableDatas = datas.map((data) => {
+    return heads.reduce((acc, head, idx) => {
+      acc[head] = data[idx]
+      return acc
+    }, {} as TableData) // reduce 方法的第二个参数，如果只是 {} 那么就会导致 上面 acc[head] = data[idx] 类型错误，因为不能位空对象添加属性。而通过 as 断言位 TableData， 那么 acc 也就会是 TableData 类型。最后结合类型推断，tableDatas 也是 TableDatap[] 类型
+  })
+  console.log(tableDatas)
+  /**
+    * [
+    *   {
+    *     "name": "asd",
+    *     "lastName": "qwe",
+    *     "date": "2020-12-31"
+    *   }, 
+    *   {
+    *     "name": "zxc",
+    *     "lastName": "cvb",
+    *     "date": "2021-01-01"
+    *   }
+    * ]
+    */
+  
+  // 尖括号断言
+  let someValue: unknown = "this is a string";
+  let strLength: number = (<string>someValue).length;
   ``` 
+  通常因为和jsx语法冲突，所以推荐使用 as 进行断言。
 
-#### 3. 类型收缩
-  类型收缩通常用于对联合类型的收缩。
+  - 3. ? 可选链断言
+  和ES中的可选链一样，如果某个属性是可选属性，那么通过使用 ? 就能避免写过多的判断语法。
+  ```typescript
+  // 还是上文中的那个例子：
+  const tableBody = document.querySelector('.el-table__body')
 
-#### 4. 类型兼容
+  // 不过这次我们使用 ? 可选链操作符去调用 dom方法，如下调用addEventListener，此时就不会出现类型错误。
+  tableBody?.addEventListener('click', (e) => {
+      console.log(e)
+  })
+  ```
+
+#### 4. 类型守卫
+  - 1. 定义作用
+    类型守卫 可以理解为类型收缩的更准确的操作。在类型收缩中，我们通过使用if判断变量是否为null 或 undefined 来实现类型收缩。但这样判断会导致一个问题：运行时，可能会将一些其他类型变量也判断为false或ture，这是因为 js 的动态类型，从而存在隐式转换，比如 空字符串 ''、 数字 0、NaN 会被判断为 false，而 空对象{}、空数组{} 则会被判断为ture。因此在存在这些边界值的情况下，直接使用 if 判断是否为空 就不准确了。但幸好在js中还有其他一些操作符用于帮助我们判断类型。
+
+  - 2. in 
+    使用 in 操作符做类型守卫，本质上就是借助了 js 中 in 操作符的用法：判断一个属性是否在一个对象中。
+    ```typescript
+    type Fish = {
+      swim: () => void
+    };
+    type Bird = {
+      fly: () => void
+    };
+    function move(pet: Fish | Bird) {
+      if ("swim" in pet) { 
+        return pet.swim();
+      }
+      return pet.fly();
+    }
+    ```
+  - 3. typeof 
+    本质上也是 通过 typeof 判断类型。不过 typeof 只会返回这些类型 "undefined", "number", "string", "boolean", "bigint", "symbol", "object"、 "function"
+    ```typescript
+    function isNumber(x: any): x is number {
+      return typeof x === "number";
+    }
+
+    function isString(x: any): x is string {
+      return typeof x === "string";
+    }
+
+    function padLeft(value: string, padding: string | number) {
+      if (isNumber(padding)) {
+        return Array(padding + 1).join(" ") + value;
+      }
+      if (isString(padding)) {
+        return padding + value;
+      }
+      throw new Error(`Expected string or number, got '${padding}'.`);
+    }
+    ```
+  - 4. instanceof
+    用于判断 一个对象是否是一个类的实例。
+    ```typescript
+    class Foo {
+      foo = 123;
+      common = '123';
+    }
+
+    class Bar {
+      bar = 123;
+      common = '123';
+    }
+
+    function doStuff(arg: Foo | Bar) {
+      if (arg instanceof Foo) {
+        console.log(arg.foo); // ok
+        console.log(arg.bar); // Error
+      }
+      if (arg instanceof Bar) {
+        console.log(arg.foo); // Error
+        console.log(arg.bar); // ok
+      }
+    }
+
+    doStuff(new Foo());
+    doStuff(new Bar());
+    ```
+
+#### 5. 类型兼容
   1. subtype
-    在基础类型 any 和 unknow 类型中有提过 subtype。 我们也知道 如果 B 是 A 的 subtype，那么 B 类型的值就能赋值给 A 类型的变量 (函数调用也一样：上文提到的object类型), 反过来则不能赋值。
+    在基础类型 any 和 unknow 类型中有提过 subtype。 我们可以看出，如果 B 是 A 的 subtype，那么 B 类型的值就能赋值给 A 类型的变量 (函数调用的参数也一样：上文提到的object类型), 反过来则不能赋值。
     ```typescript
     interface A {
       name: string
@@ -561,22 +846,42 @@ typescript 是 javascript 的超集。
 
 ### 类型编程
   经过这几年的发展，ts 的类型系统已经非常成熟，而且还具有图灵完备：可以当作一门编程语言使用。比如这位大佬用它实现了4位加法器。 不过碍于本人自己水平，本节只会讲解一些最基础的类型编程。
-#### 1. 类型守卫
-  - 1. 定义作用
-  - 2. in 
-    使用 in 操作符做类型守卫，本质上就是借助了 js 中 in 操作符的用法：判断一个属性是否在一个对象中。
-  - 3. typeof 
-    本质上也是 通过 typeof 判断类型。
-  - 4. instanceof
-    用于判断 一个对象是否是一个类的实例。
 
-#### 2. 类型映射
+#### 1. 类型映射
   通过一个类型创建另一个类型。ts 中提供了这些操作符用于创建新类型: `keyof type`、`typeof type` 以及 `索引访问类型( Indexed Access Types )`
-  - 1. Keyof 操作符
-  - 2. typeof 操作符
-    typeof 在 js 中适用于判断类型的，而在 ts 中也是用来推断类型的，只不过，当被用于类型声明。
+  - 1. keyof 操作符
+    keyof T 可以获取 T 类型的key字段，类似于 js 中的 Object.keys(), 通常返回的是一个有字面量类型组成的联合类型。
+    ```typescript
+    type Point = { x: number; y: number };
+    type P = keyof Point; // P 的实际类型为 'x' | 'y'
+    type IsTrue = P extends 'x' | 'y' ? true : false // 可以验证： ISTrue 为 true
 
-#### 3. 条件类型
+    ```
+  - 2. typeof 操作符
+    typeof 在 js 中适用于判断类型的，而在 ts 也可以用来推断实际值的类型。
+    ```typescript
+    let p = { x: number; y: number };
+    type Point = typeof p;
+    /** 
+      * Point -> 
+      *   {
+      *     x: number;
+      *     y: number;
+      *   }
+      *
+      */
+
+    ```
+  - 3. 类型索引
+    和 js 中访问对象类似，在 ts 中也可以访问类型中字段，只不过结果为该字段的标注类型。如果使用联合类作为索引访问，那么得到的结果也就是这些联合类型匹配的字段的标注类型 组成的联合类型。
+    ```typescript
+    type Person = { age: number; name: string; alive: boolean };
+    type Age = Person["age"]; // Age -> number
+    type I1 = Person["age" | "name"]; // I1 -> number | string
+    type I2 = Person[keyof Person];   // I2 -> number | string | boolean
+    ```
+
+#### 2. 条件类型
   - 1. 
   类似于 js 中的 三元表达式， ts 中的类型也能够根据条件返回不同的类型。其结构如下:
   `T extends U ? X : Y`
@@ -585,7 +890,7 @@ typescript 是 javascript 的超集。
   - 2. infer T
     infer 是与条件类型绑定出现的关键词， 用于 extends 的右边，替代要符合的类型，从而方便条件分支的使用。
 
-#### 4. 常用工具类型
+#### 3. 常用工具类型
   - 1. Partial<Type> 
     用于将对象的各个属性转化成可选属性。
   - 2. Required<Type> 
@@ -625,6 +930,7 @@ typescript 是 javascript 的超集。
 
   也可以通过自定义装饰器，创建自己的装饰器。如下的 loading 装饰器 和 log 装饰器。
   ```typescript
+  
   ```
 
   - 2. 为什么不能在函数上使用装饰器： 因为存在函数提升。类是不会提升的，所以就没有这方面的问题。
