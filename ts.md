@@ -381,7 +381,9 @@ typescript 是 javascript 的超集。
     ```typescript
     type StringN = string; // 原始值的别名
     type StrAndNum = string | number; // string 和 number 的联合类型， 具体值的类型为两者中的某一个。
+    type KeyValue = [string, number];
 
+    let keyValue: KeyValue = ['num', 123]
     // 声明对象和interface基本一致。且同个命名空间下，只能存在唯一命名的 type alias。
     // 上文中 使用 interface 声明的 User 类型 可以用 type alias 这样声明:
     type User = {
@@ -393,6 +395,10 @@ typescript 是 javascript 的超集。
       name: 'admin',
       password: '123456'
     }
+
+    type SuperUser = {
+      type: 'vip' | 'svip'
+    } & User
     ```
 
 #### 3. interface 与 type alias 的区别
@@ -412,6 +418,9 @@ typescript 是 javascript 的超集。
   - 3. this 类型
     在 ts 的普通函数中使用 this 会有一个报错。解决方法为 使用 箭头函数代替，使用 this 参数
     this 参数 是一个特殊的参数，它必须放在函数的第一个参数位置上，在编译成 js 后 this 参数会被去掉，使用时一定要注意 this 的类型声明要符合正确的this类型。
+    ```typescript
+
+    ```
 
   - 4. 函数重载
     函数重载是指函数的多态性: 函数的 参数数量、参数类型 和 返回值 不同，但函数名相同。
@@ -517,6 +526,37 @@ typescript 是 javascript 的超集。
 #### 3. 类型收缩
   类型收缩通常用于对联合类型的收缩。
 
+#### 4. 类型兼容
+  1. subtype
+    在基础类型 any 和 unknow 类型中有提过 subtype。 我们也知道 如果 B 是 A 的 subtype，那么 B 类型的值就能赋值给 A 类型的变量 (函数调用也一样：上文提到的object类型), 反过来则不能赋值。
+    ```typescript
+    interface A {
+      name: string
+    }
+    interface B {
+        name: string
+        type: number
+    }
+
+    type BisSubtypeOfA = B extends A ? true : never // -> true
+
+    let b: B = {
+        name: '123',
+        type: 1
+    }
+    let a: A = b
+
+    let a1: A = {
+        name: 'a1'
+    }
+
+    let b1: B = a1  // Error -> Property 'type' is missing in type 'A' but required in type 'B'
+
+    ```
+  2. bottom typ 是所有类型的 subtype， 所有类型是 top type 的 subtype。回到上文提到过的 unknow 、 any 和 never 类型，从 top type 和 bottom type 角度来看， unknow 就是 top type（其他类型的值可以赋值给unknown类型的变量），never 则是 bottom type （可以赋值给其他类型变量，但反之则不能），any 则既是 top type 又是 bottom type（any 类型变量可以任意赋值，反义也一样）。
+
+  3. typescript 的类型系统采用的是结构类型，即只要两个变量类型的结构（shape）相同，那这两个类型就是相等的（两个类型的变量可以相互赋值）。但上述情况只在变量赋值的时候存在，如果使用了对象字面量，那就会报错，因为 ts 会对对象字面量进行特殊的处理 进行额外属性检测。
+
 ## typescript 进阶
 
 ### 类型编程
@@ -543,7 +583,7 @@ typescript 是 javascript 的超集。
   和 泛型约束 所用到的关键字 extends 一样， 两者表述的意思也基本相同：T 符合 U。 这个条件类型表示 T 符合 U 那么就得到 X 类型，负责得到 Y 类型。
 
   - 2. infer T
-    infer 是与条件类型绑定出现的关键词， 用于 extends 的右边，替代 要符合的类型，从而方便条件分支的使用。
+    infer 是与条件类型绑定出现的关键词， 用于 extends 的右边，替代要符合的类型，从而方便条件分支的使用。
 
 #### 4. 常用工具类型
   - 1. Partial<Type> 
@@ -558,7 +598,6 @@ typescript 是 javascript 的超集。
   - 7. Exclude<Type> 
   - 8. Extract<Type> 
   - 9. ReturnType<Type> 
-
 
 ### 其他
 #### 1. 装饰器
@@ -640,6 +679,7 @@ typescript 是 javascript 的超集。
   ```typescript
   /// <reference path="./jquery.d.ts" />
   ```
+
 #### 3. tsconfig.json 配置
   类似于前端其他工具，比如 webpack 、eslint 、babel 等，虽然可以通过 cli 程序指定具体的文件进行相关操作。但通常工程化的项目中，会采用配置文件来代替手工 cli 输入。ts 的相关配置文件为 tsconfig.json 下面简单说说常用的属性：
   ```json
@@ -692,7 +732,6 @@ typescript 是 javascript 的超集。
 
 ## typescript 探讨
   - 1. ts 本质
-    本质上来讲，typescript 的类型系统采用的是结构类型，即只要两个变量类型的结构（shape）相同，那这两个类型就是相等的（两个类型的变量可以相互赋值）。但上述情况只在变量赋值的时候存在，如果使用了对象字面量，那就会报错，因为 ts 会对对象字面量进行特殊的处理 进行额外属性检测。
     通常类型在编译为 js 代码后会被直接去掉。
   - 2. 为什么要使用
     规避常见类型错误、更好的 IDE 提示、更易于重构等。
