@@ -580,6 +580,9 @@ typescript 是 javascript 的超集。
     定义方式为：type B = typeA & typeB
     从概念上可以这样理解交叉类型，比作交集。
     从实际上可以这样理解：交叉类型的结果就是其用于交叉类型中的各个类型的所有属性。
+    ```typescript
+
+    ```
 
     特殊：与 never 交叉的类型，其结果是 never。 
     两个不相交的类型，交叉后也是 never。比如 number & string ，因为两者并不相交，所以其类型为 never。
@@ -590,21 +593,66 @@ typescript 是 javascript 的超集。
   function identity<Type>(arg: Type): Type {
     return arg;
   }
+  identity(1) // return -> number
+  identity('hello') // return -> string
+
+  interface Option<T> {
+    label: string
+    value: T
+  }
+
+  let option: Option<number> = {
+    label: '一',
+    value: 1
+  }
+  let option2: Option<number> = {
+    label: '一',
+    value: '一'
+  }
   ```
 
   - 2. 泛型约束
     当我们想使用泛型，但并不想使用所有类型的时候，就可以使用泛型约束，从而让泛型在一定的类型范围内。
     通过 extend 关键字可以对泛型进行约束，如下例子
     ```typescript
-    interface Lengthwise {
-      length: number;
+    // 将对象转化为query string
+    function obj2QueryStr<T extends object, K extends keyof T>(obj: T): string {
+      let str = ''
+      for (const key of Object.keys(obj) as K[]) {
+        str += `&${key}=${obj[key]}`
+      }
+      return str
     }
 
-    function loggingIdentity<Type extends Lengthwise>(arg: Type): Type {
-      console.log(arg.length); // Now we know it has a .length property, so no more error
-      return arg;
+    interface ITree {
+      childrens?: ITree[] | null
+    }
+    /**
+    * 树形结构遍历
+    * @param tree 
+    * @param fn 
+    */
+    function traverseTree<T extends ITree>(tree: T[], fn: (node: T) => void ) {
+      if (!tree.length) {
+        return
+      }
+      const queue = tree.slice() // 浅拷贝 防止修改原始数据
+      while(queue.length) {
+        let len = queue.length
+        while(len--) {
+          const node = queue.shift()
+          if (!node) {
+            continue
+          }
+          fn(node)
+          if (node.childrens) {
+            queue.push(...node.childrens as T[])
+          }
+        }
+      }
     }
     ```
+
 
 #### 9. 模板字符串类型
   1. 基础语法
@@ -886,23 +934,97 @@ typescript 是 javascript 的超集。
   类似于 js 中的 三元表达式， ts 中的类型也能够根据条件返回不同的类型。其结构如下:
   `T extends U ? X : Y`
   和 泛型约束 所用到的关键字 extends 一样， 两者表述的意思也基本相同：T 符合 U。 这个条件类型表示 T 符合 U 那么就得到 X 类型，负责得到 Y 类型。
+  如果T为联合类型那么就会对联合类型中的每一个类型进行判断：
+  ```typescript
+  ```
 
   - 2. infer T
     infer 是与条件类型绑定出现的关键词， 用于 extends 的右边，替代要符合的类型，从而方便条件分支的使用。
 
 #### 3. 常用工具类型
   - 1. Partial<Type> 
-    用于将对象的各个属性转化成可选属性。
+    用于将泛型Type的各个属性转化成可选属性。
   - 2. Required<Type> 
-    用于将对象的各个属性转化成必填属性。
+    用于将泛型Type的各个属性转化成必填属性。
   - 3. Readonly<Type> 
-    用于将对象的各个属性转化成只读属性。
-  - 4. Record<Type> 
-  - 5. Pick<Type> 
-  - 6. Omit<Type> 
-  - 7. Exclude<Type> 
-  - 8. Extract<Type> 
+    用于将泛型Type的各个属性转化成只读属性。
+  - 4. Record<Keys,Type> 
+    用泛型Type类型构建key为Keys的对象类型，也就是说构建出来的对象类型的属性key为keys的值，而属性对应的类型为Type类型。
+    ```typescript
+    interface CatInfo {
+      age: number;
+      breed: string;
+    }
+    type CatName = "miffy" | "boris" | "mordred";
+
+    const cats: Record<CatName, CatInfo> = {
+      miffy: { age: 10, breed: "Persian" },
+      boris: { age: 5, breed: "Maine Coon" },
+      mordred: { age: 16, breed: "British Shorthair" },
+    };
+    ```
+  - 5. Pick<Type, Keys> 
+    从泛型Type中提取属性为Keys的部分。
+    ```typescript
+    export interface FormSchema {
+      label?: string
+      prop: string
+      type: string
+      options?: Array<{label: any, value: any}>
+    }
+    type Schema = Pick<FormSchema, 'prop' | 'options'>
+    /**
+    * 
+    * 
+    * type Schema = {
+    *  prop: string;
+    *  options?: {
+    *      label: any;
+    *      value: any;
+    *    }[] | undefined;
+    *  }
+    */
+    ```
+  - 6. Omit<Type, Keys> 
+    从泛型Type中移除Keys，生成新的的类型
+    ```typescript
+    interface Todo {
+      title: string;
+      description: string;
+      completed: boolean;
+    }
+
+    type TodoPreview = Omit<Todo, "description">;
+
+    const todo: TodoPreview = {
+      title: "Clean room",
+      completed: false,
+    };
+    ```
+  - 7. Exclude<Type, ExcludedUnion> 
+    泛型Type 和 ExcludedUnion 都为联合类型， 去除 T 类型和 U 类型的交集。
+    ```typescript
+    type T1 = Exclude<"a" | "b" | "c", "a" | "b">;
+    //    ^ = type T1 = "c"
+    type T2 = Exclude<string | number | (() => void), Function>;
+    //    ^ = type T2 = string | number
+    ```
+  - 8. Extract<Type, Union> 
+    和Exclude相反，只保留T 类型和 U 类型的交集。
+    ```typescript
+    type T0 = Extract<"a" | "b" | "c", "a" | "f">;
+    //    ^ = type T0 = "a"
+    type T1 = Extract<string | number | (() => void), Function>;
+    //    ^ = type T1 = () => void
+    ```
   - 9. ReturnType<Type> 
+    获取Type函数返回类型。
+    ```typescript
+    type T0 = ReturnType<() => string>;
+    //    ^ = type T0 = string
+    type T1 = ReturnType<(s: string) => void>;
+    //    ^ = type T1 = void
+    ```
 
 ### 其他
 #### 1. 装饰器
@@ -930,7 +1052,28 @@ typescript 是 javascript 的超集。
 
   也可以通过自定义装饰器，创建自己的装饰器。如下的 loading 装饰器 和 log 装饰器。
   ```typescript
-  
+  import { createDecorator } from 'vue-class-component'
+  import { Loading } from 'element-ui'
+
+  export const DecLoading = (target: string) => {
+    return createDecorator((options: any, key) => {
+      const orginalMethod = (options.methods as any)[key]
+
+      options.methods[key] = async function wrapperMethod(...args: any) {
+        const loadingIns = Loading.service({ target })
+        await orginalMethod.apply(this, args)
+        loadingIns.close()
+      }
+    })
+  }
+
+  @Component
+  export default class Page extends Vue {
+    @DecLoading('.page-wrap')
+    public async getData() {
+      // 请求数据
+    }
+  }
   ```
 
   - 2. 为什么不能在函数上使用装饰器： 因为存在函数提升。类是不会提升的，所以就没有这方面的问题。
