@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>圣杯布局</title>
+    <style>
+      .container {
+        padding-left: 200px;
+        padding-right: 100px;
+      }
+      .middle {
+        float: left;
+        width: 100%;
+      }
+      .left {
+        float: left;
+        width: 200px;
+        margin-left: -100%;
+        position: relative;
+        left: -200px;
+      }
+      .right {
+        float: left;
+        width: 100px;
+        margin-left: -100px;
+        position: relative;
+        right: -100px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='container'>
+      <div class="middle">中间的</div>
+      <div class="left">左边的</div>
+      <div class="right">右边的</div>
+    </div>
+  </body>
+</html>
