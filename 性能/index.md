@@ -20,3 +20,25 @@
   FSP ( first-screen-paint ) ：页面从加载到首屏内容全部绘制完成的时间。
   
 
+## 从哪些方面关注性能
+1. 页面是否正常加载 （ FP、FCP ）
+2. 加载的内容是否以及足够 （ FMP ）
+3. 页面是否可以操作 （ TTI ）
+4. 页面是否可以交互，动画是否流畅  （ 耗时长的任务 ）
+
+1. 可以直接通过performance api获取
+2. 首先要理解什么是主要内容：常见的可以把图片、视频、动画或者占可视面积较大的视为主要内容，
+计算： 获取 FMP元素 、计算 FMP 元素加载时间。
+3. TTI: domContentLoadedEventEnd - navigationStart 或者 tti-polyfill
+4. 可以通过 Long Tasks API 测量
+长任务：任何连续不间断的且主UI线程繁忙50毫秒及以上的时间区间。
+```javascript
+const observer = new PerformanceObserver((list) => {
+  for (const entry of list.getEntries()) {
+    // TODO...
+    console.log(entry);
+  }
+});
+
+observer.observe({entryTypes: ['longtask']});
+```
